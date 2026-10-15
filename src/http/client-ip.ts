@@ -97,3 +97,15 @@ export function createClientIdentity(opts: { trustProxyHops: number; internalTok
     },
   };
 }
+
+/**
+ * Whether the agent may send its internal token to MCP_URL: only to this process, i.e. a
+ * loopback host or the app's own HOST. Anywhere else the token would leave the process.
+ */
+export function internalTokenAllowed(mcpUrl: string | undefined, bindHost: string | undefined): boolean {
+  if (!mcpUrl) return true;
+  const bare = (h: string) => h.toLowerCase().replace(/^\[|\]$/g, "");
+  const host = bare(new URL(mcpUrl).hostname);
+  if (host === "localhost" || host === "::1" || /^127(\.\d{1,3}){3}$/.test(host)) return true;
+  return !!bindHost && host === bare(bindHost);
+}

@@ -15,9 +15,15 @@ import { haversineKm, travelMinutes } from "../geo.ts";
 import { addDays, hourOfMu, muInstant, muParts } from "../time.ts";
 import { ATTRIBUTION, type ToolDeps, type ToolOutcome, fail, forecastPoint, resolveArea, viaPrefix } from "./context.ts";
 import { alertArticle, isHeavy, isRainy, isWindy, rainySpells, spokenCycloneName, summarise, watchSentence } from "./forecast.ts";
-import { capitalise, clockWord, fitSpeech, spokenTime } from "./speech.ts";
+import { capitalise, clockWord, fitSpeech, spokenPlaceName, spokenTime } from "./speech.ts";
 
 export const SWAP_RADIUS_KM = 35;
+/** Evenings: shopping centres count only within this drive, and so do the places that fill up. */
+export const EVENING_DRIVE_MIN = 30;
+/** Evenings: no drive longer than this while a covered place within EVENING_DRIVE_MIN exists. */
+export const EVENING_MAX_DRIVE_MIN = 45;
+/** From this hour (the window's start) heat advice is about the evening, not the middle of the day. */
+export const LATE_HEAT_HOUR = 15;
 export const MAX_SWAP_OPTIONS = 3;
 export const MAX_KEEP_IDEAS = 2;
 
@@ -234,7 +240,7 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
   const say = (first: string, second: string, opts: Option[] = [], leadWritten = false): string => {
     const s1 = leadWritten ? viaPrefix(via, first) : forTomorrow(first);
     if (!watch) return fitSpeech(`${s1} ${second}`, s1);
-    const withOption = opts[0] ? `${s1.replace(/\.$/, "")}, like ${opts[0].name}, about ${opts[0].travel_min} minutes away.` : s1;
+    const withOption = opts[0] ? `${s1.replace(/\.$/, "")}, like ${spokenPlaceName(opts[0].name)}, about ${opts[0].travel_min} minutes away.` : s1;
     return fitSpeech(`${withOption} ${watchSentence(watch)}`, `${s1} ${watchSentence(watch)}`, `${s1} ${watchSentence(watch, true)}`, watchSentence(watch));
   };
 
@@ -282,20 +288,52 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
         why: why(place, minutes),
       };
     });
-  const optionSentence = (opts: Option[]) => describeOptions(opts.map((o) => ({ name: o.name, minutes: o.travel_min })));
+  const optionSentence = (opts: Option[]) => describeOptions(opts.map((o) => ({ name: spokenPlaceName(o.name), minutes: o.travel_min })));
   const speak = (first: string, opts: Option[]) =>
     watch
       ? say(first, "", opts)
       : fitSpeech(`${forTomorrow(first)} ${optionSentence(opts)}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 2))}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 1))}`);
 
+  /**
+   * Covered places to swap to (for rain and heat), ranked nearest first.
+   *
+   * Evenings (the window starts at 17:00 or later): the dataset has no opening hours, and
+   * museums and estates mostly close by late afternoon, while shopping centres stay open. So
+   * shopping centres within a 30-minute drive come first, and the remaining slots go to the
+   * nearest other covered places within 30 minutes. With no shopping centre that close, the
+   * usual varied pick applies and the reason asks to check opening, but drives are capped at
+   * 45 minutes (or at the nearest covered place, if even that is further), so no 50-70-minute
+   * drive is offered while a nearer covered place exists.
+   */
+  const coveredPicks = (): { picks: Array<{ place: Place; km: number }>; evening: "malls" | "check" | null } => {
+    const covered = familyFirst(nearby.filter((c) => c.place.rain_ok));
+    if (win.fromHour < WINDOWS.evening.from) return { picks: pickVaried(covered, MAX_SWAP_OPTIONS), evening: null };
+    const close = covered.filter((c) => travelMinutes(c.km) <= EVENING_DRIVE_MIN);
+    const malls = close.filter((c) => c.place.kind === "shopping");
+    if (malls.length) {
+      const others = close.filter((c) => c.place.kind !== "shopping");
+      return { picks: [...malls, ...others].slice(0, MAX_SWAP_OPTIONS), evening: "malls" };
+    }
+    const nearest = Math.min(...covered.map((c) => travelMinutes(c.km)));
+    const cap = Math.max(EVENING_MAX_DRIVE_MIN, nearest);
+    const pool = covered.filter((c) => travelMinutes(c.km) <= cap);
+    return { picks: pickVaried(pool, MAX_SWAP_OPTIONS), evening: pool.length ? "check" : null };
+  };
+  const EVENING_REASON = {
+    malls: " Evening, so shopping centres first: most museums close by late afternoon.",
+    check: " Evening: my list has no opening hours, so check it's still open.",
+  } as const;
+  /** The option sentence with "check it's still open" when that fits; otherwise without. */
+  const speakEvening = (first: string, opts: Option[], check: boolean): string => {
+    if (!check || watch || !opts.length) return speak(first, opts);
+    const withCheck = (n: number) => optionSentence(opts.slice(0, n)).replace(/\.$/, Math.min(n, opts.length) > 1 ? ", and check they're still open." : ", and check it's still open.");
+    const s1 = forTomorrow(first);
+    return fitSpeech(`${s1} ${withCheck(3)}`, `${s1} ${withCheck(2)}`, `${s1} ${withCheck(1)}`, speak(first, opts));
+  };
+
   // 3. Wet: swap for covered places nearby, of different kinds.
   if (wet) {
-    const covered = familyFirst(nearby.filter((c) => c.place.rain_ok));
-    // Evenings: the dataset has no opening hours, and museums and estates mostly close by late
-    // afternoon, so from 17:00 the shopping centres (open into the evening) come first.
-    const evening = win.fromHour >= WINDOWS.evening.from;
-    const malls = covered.filter((c) => c.place.kind === "shopping");
-    const picks = evening && malls.length >= 2 ? malls.slice(0, MAX_SWAP_OPTIONS) : pickVaried(covered, MAX_SWAP_OPTIONS);
+    const { picks, evening } = coveredPicks();
     const options = toOptions(picks, (p, m) => `${settingWord(p)}, about ${m} minutes away.`);
     const spells = rainySpells(steps);
     const at = (h: number) => (win.name === "rest_of_day" ? spokenTime(h) : clockWord(h));
@@ -319,20 +357,25 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
         : reported === "rain"
           ? "You reported rain."
           : `The forecast has ${rainyHours} rainy ${rainyHours === 1 ? "hour" : "hours"} in the window.`;
-    const reasonText = evening && malls.length >= 2 ? `${reason} Evening, so shopping centres first: most museums close by late afternoon.` : reason;
+    const reasonText = evening ? reason + EVENING_REASON[evening] : reason;
     const speech = options.length
-      ? speak(first, options)
+      ? speakEvening(first, options, evening === "check")
       : say(first, `I don't have a covered place within ${SWAP_RADIUS_KM} kilometres in my verified list, so a quiet break indoors may be best.`);
     return result("swap", reasonText, options, speech);
   }
 
-  // 4. Heat: shade or indoors for the middle of the day.
+  // 4. Heat: shade or indoors; for the middle of the day, or until it cools off when it's late.
   if (heat) {
-    const picks = pickVaried(familyFirst(nearby.filter((c) => c.place.rain_ok)), MAX_SWAP_OPTIONS);
-    const options = toOptions(picks, (p, m) => `${settingWord(p)} and out of the midday sun, about ${m} minutes away.`);
-    const first = `It's hot in ${area.name}, so spend the middle of the day somewhere shaded and keep the beach for later.`;
-    const speech = options.length ? speak(first, options) : say(first, "");
-    return result("swap", "You reported heat.", options, speech);
+    const late = win.fromHour >= LATE_HEAT_HOUR;
+    const { picks, evening } = coveredPicks();
+    const options = toOptions(picks, (p, m) => `${settingWord(p)} and out of the ${late ? "" : "midday "}sun, about ${m} minutes away.`);
+    // "this evening" is already in the lead after a rollover to this evening.
+    const until = win.label === "this evening" ? "later" : "this evening";
+    const first = late
+      ? `It's hot in ${area.name}, so keep to the shade until it cools off ${until}.`
+      : `It's hot in ${area.name}, so spend the middle of the day somewhere shaded and keep the beach for later.`;
+    const speech = options.length ? speakEvening(first, options, evening === "check") : say(first, "");
+    return result("swap", "You reported heat." + (evening ? EVENING_REASON[evening] : ""), options, speech);
   }
 
   // 5. Windy and the plan is on the water: move it ashore.
@@ -359,18 +402,23 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
     pickVaried(familyFirst(nearby.filter((c) => c.place.setting === "outdoor" || c.place.setting === "mixed")), MAX_KEEP_IDEAS),
     (p, m) => `${settingWord(p)}, about ${m} minutes away.`,
   );
+  // After a rollover the asked-for window is over, so "your plan" would mean a plan that's gone.
+  const plans = win.rolledFrom ? (win.label === "this evening" ? "your evening plans" : "your plans") : "your plan";
   let first: string;
   let reason: string;
   if (haveForecast) {
-    first = windy ? `It's dry but windy over ${area.name}, so keep your plan and stay off the water.` : `The forecast for ${area.name} looks dry${win.tomorrow ? "" : ` for ${win.label}`}, so keep your plan.`;
+    first = windy
+      ? `It's dry but windy over ${area.name}, so keep ${plans} and stay off the water.`
+      : `The forecast for ${area.name} looks dry${win.tomorrow || win.rolledFrom ? "" : ` for ${win.label}`}, so keep ${plans}.`;
     reason = windy ? "Dry forecast, but wind of 10 m/s or more." : rainyHours === 1 ? "Only 1 rainy hour and no heavy rain forecast." : "Dry forecast.";
   } else if (reported) {
-    first = `I can't reach the forecast, but if it's ${reported === "wind" ? "only windy" : "dry"} in ${area.name}, keep your plan${windy ? " and stay off the water" : ""}.`;
+    first = `I can't reach the forecast, but if it's ${reported === "wind" ? "only windy" : "dry"} in ${area.name}, keep ${plans}${windy ? " and stay off the water" : ""}.`;
     reason = reported === "wind" ? "You reported wind; no forecast available." : "You reported dry weather; no forecast available.";
   } else {
     first = `I can't reach the forecast right now, so keep your plan and tell me if it starts to rain.`;
     reason = "No forecast available and no weather reported.";
   }
-  const extra = ideas.length === 0 ? "" : ideas.length === 1 ? `If you want more, ${ideas[0]!.name} is about ${ideas[0]!.travel_min} minutes away.` : `Nearby, you could also try ${ideas[0]!.name} or ${ideas[1]!.name}.`;
+  const idea = (i: number) => spokenPlaceName(ideas[i]!.name);
+  const extra = ideas.length === 0 ? "" : ideas.length === 1 ? `If you want more, ${idea(0)} is about ${ideas[0]!.travel_min} minutes away.` : `Nearby, you could also try ${idea(0)} or ${idea(1)}.`;
   return result("keep", reason, ideas, say(first, extra));
 }

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { KINDS, SETTINGS, TAGS } from "../data/places.ts";
 import { type ToolDeps, type ToolOutcome, fail, quoted } from "./context.ts";
-import { fitSpeech, spokenDuration } from "./speech.ts";
+import { fitSpeech, spokenDuration, spokenList } from "./speech.ts";
 
 /** Match score (0..1) a place needs to be suggested: roughly 60 % letter similarity. */
 export const SUGGEST_FLOOR = 0.3;
@@ -43,12 +43,12 @@ export function placeDetails(input: PlaceDetailsInput, deps: ToolDeps): ToolOutc
   const { places } = deps;
   const place = places.place(input.place) ?? places.findPlace(input.place);
   if (!place) {
-    // Only names that are close; read with "or" between them, never commas, because some
-    // names contain a comma ("Natural History Museum, Port Louis").
+    // Only names that are close, in full so they can be asked for again, read so a name with
+    // a comma ("Natural History Museum, Port Louis") is still heard as one item.
     const names = places.suggestPlacesAbove(input.place, 3, SUGGEST_FLOOR).map((p) => p.name);
     const missing = `I don't have a place called '${quoted(input.place)}' in my verified list.`;
     if (!names.length) return fail(`${missing} Try find_places with an area or a kind to see what's there.`);
-    return fail(`${missing} Did you mean ${names.join(" or ")}?`);
+    return fail(`${missing} Did you mean ${spokenList(names, "or")}?`);
   }
   const allow = `Allow ${spokenDuration(place.duration_min)}${place.rain_ok ? ", and it works in the rain" : ""}.`;
   return {

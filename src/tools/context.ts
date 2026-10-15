@@ -3,7 +3,7 @@
 import type { Area, Place, PlacesIndex } from "../data/places.ts";
 import type { CycloneReport } from "../feeds/cyclones.ts";
 import type { WeatherReport } from "../feeds/weather.ts";
-import { capSpeech, joinNames } from "./speech.ts";
+import { capSpeech, spokenAreaName, spokenList } from "./speech.ts";
 
 export interface WeatherSource {
   get(lat: number, lon: number, now?: number): Promise<WeatherReport>;
@@ -45,8 +45,9 @@ export function resolveArea(places: PlacesIndex, query: string): { area: Area; v
     if (placeArea) return { area: placeArea, via: place.item };
   }
   if (area) return { area: area.item };
-  const names = places.suggestAreas(query, 5).map((a) => a.name);
-  return { error: `I don't know the area '${quoted(query)}'. Try: ${joinNames(names, "or")}.` };
+  // Short spoken names ("Mahébourg", not "Mahébourg and Blue Bay"), each a name we accept.
+  const names = places.suggestAreas(query, 5).map((a) => spokenAreaName(a.name));
+  return { error: `I don't know the area '${quoted(query)}'. Try: ${spokenList(names, "or")}.` };
 }
 
 /** "Going by Grand Bassin (Ganga Talao), …" when the area came from a place name. */

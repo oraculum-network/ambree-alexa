@@ -5,7 +5,7 @@ import { KINDS, type Kind, type Place, SETTINGS } from "../data/places.ts";
 import { normalize } from "../data/match.ts";
 import { haversineKm, round1 } from "../geo.ts";
 import { type ToolDeps, type ToolOutcome, fail, resolveArea, viaPrefix } from "./context.ts";
-import { fitSpeech, joinNames } from "./speech.ts";
+import { fitSpeech, spokenList, spokenPlaceName } from "./speech.ts";
 
 export const NEARBY_KM = 25;
 
@@ -110,8 +110,9 @@ export function findPlaces(input: FindPlacesInput, deps: ToolDeps): ToolOutcome<
     const what = `${input.rain_ok ? "covered " : ""}${input.kind ? KIND_PLURAL[input.kind] : "places"}`;
     speech = fitSpeech(viaPrefix(via, `I couldn't find any ${what}${where} in my verified list. Try another area or fewer filters.`));
   } else {
-    const names = out.slice(0, 3).map((p) => p.name);
-    const lead = viaPrefix(via, area ? `Near ${area.name}, try ${joinNames(names)}.` : `Try ${joinNames(names)}.`);
+    // Spoken names, so "Natural History Museum, Port Louis" isn't heard as two places.
+    const names = out.slice(0, 3).map((p) => spokenPlaceName(p.name));
+    const lead = viaPrefix(via, area ? `Near ${area.name}, try ${spokenList(names, "or")}.` : `Try ${spokenList(names, "or")}.`);
     const first = chosen[0]!.place.speech;
     speech = fitSpeech(`${lead} ${first}`, lead, viaPrefix(via, `Try ${names[0]}.`));
   }

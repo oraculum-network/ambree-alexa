@@ -1,6 +1,6 @@
 // POST /api/agent with a mock OpenRouter: real MCP calls, caps, fallbacks, budget, logs.
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OFFLINE_HINT, routeOffline } from "../src/agent/offline.ts";
 import { createBudget } from "../src/agent/budget.ts";
 import { MAX_CALLS_PER_TURN, MAX_TOOL_ROUNDS, NOTICES, runAgentTurn, systemPrompt, tidyReply } from "../src/agent/loop.ts";
@@ -27,11 +27,12 @@ afterEach(async () => {
   llm = undefined;
 });
 
-function ask(url: string, text: string, history?: unknown) {
+function ask(url: string, text: string, history?: unknown, signal?: AbortSignal) {
   return fetch(`${url}/api/agent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Requested-With": "ambree" },
     body: JSON.stringify({ text, history }),
+    signal,
   });
 }
 
@@ -203,8 +204,20 @@ describe("LLM mode", () => {
   });
 });
 
-describe("budget reservation and the in-flight cap (R5)", () => {
-  async function concurrentTurns(n: number, env: Record<string, string>) {
+// Distinct clients behind one proxy (TRUST_PROXY_HOPS=1): one IPv6 documentation /64 each
+// (2001:db8::/32, RFC 3849), assembled at run time so no address literal sits in the source.
+const clientAddress = (i: number) => `${["2001", "db8"].join(":")}:${(i + 1).toString(16)}::1`;
+function askAs(url: string, client: number, text: string, signal?: AbortSignal) {
+  return fetch(`${url}/api/agent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Requested-With": "ambree", "X-Forwarded-For": clientAddress(client) },
+    body: JSON.stringify({ text }),
+    signal,
+  });
+}
+
+describe("budget reservation and the in-flight caps (R5, N4, N5)", () => {
+  async function concurrentTurns(n: number, env: Record<string, string>, cost = 0.004) {
     let inFlight = 0;
     let maxInFlight = 0;
     llm = await startMockServer(async (_req, res) => {
@@ -212,10 +225,12 @@ describe("budget reservation and the in-flight cap (R5)", () => {
       maxInFlight = Math.max(maxInFlight, inFlight);
       await new Promise((r) => setTimeout(r, 300));
       inFlight--;
-      json(res, 200, completion({ content: "Fine." }, { prompt_tokens: 2000, completion_tokens: 40, cost: 0.004 }));
+      json(res, 200, completion({ content: "Fine." }, { prompt_tokens: 2000, completion_tokens: 40, cost }));
     });
-    t = await startTestApp({ env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, RATE_LIMIT_SCALE: "100", FEEDS: "off", ...env } });
-    const replies = (await Promise.all(Array.from({ length: n }, (_, i) => ask(t!.url, `question number ${i}`).then((r) => r.json())))) as Array<{ mode: string; notice?: string }>;
+    t ??= await startTestApp({
+      env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, RATE_LIMIT_SCALE: "100", TRUST_PROXY_HOPS: "1", FEEDS: "off", ...env },
+    });
+    const replies = (await Promise.all(Array.from({ length: n }, (_, i) => askAs(t!.url, i, `question number ${i}`).then((r) => r.json())))) as Array<{ mode: string; notice?: string }>;
     return { replies, maxInFlight: () => maxInFlight };
   }
 
@@ -238,12 +253,97 @@ describe("budget reservation and the in-flight cap (R5)", () => {
     expect(replies.filter((r) => r.notice === NOTICES.budget).length).toBeGreaterThanOrEqual(17);
   });
 
-  it("caps LLM turns in flight at 3; the rest answer offline with a notice", async () => {
+  it("caps LLM turns in flight at 3 across clients; the rest answer offline with a notice", async () => {
     const { replies, maxInFlight } = await concurrentTurns(10, { AGENT_DAILY_USD: "5" });
     expect(maxInFlight()).toBe(3);
     expect(replies.filter((r) => r.mode === "llm")).toHaveLength(3);
     expect(replies.filter((r) => r.mode === "offline" && r.notice === NOTICES.busy)).toHaveLength(7);
     expect(t!.app.budget.snapshot()).toMatchObject({ inflight: 0, turns: 3 });
+  });
+
+  it("scenario B: a call dearer than the prices suggest is paid at most once per slot (N4)", async () => {
+    // $0.05 a call, about 30x the price-based estimate. Spend stays within cap + 3 x the max seen.
+    const { replies } = await concurrentTurns(20, { AGENT_DAILY_USD: "0.01" }, 0.05);
+    const first = t!.app.budget.snapshot();
+    expect(first.maxSeen).toBe(0.05);
+    expect(first.usd).toBeLessThanOrEqual(0.01 + 3 * first.maxSeen);
+    expect(replies.filter((r) => r.mode === "llm").length).toBeLessThanOrEqual(3);
+  });
+
+  it("once a dear call has been seen, later reservations use its cost (N4)", async () => {
+    llm = await startMockServer(async (_req, res) => {
+      await new Promise((r) => setTimeout(r, 300));
+      json(res, 200, completion({ content: "Fine." }, { prompt_tokens: 2000, completion_tokens: 40, cost: 0.05 }));
+    });
+    t = await startTestApp({
+      env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, RATE_LIMIT_SCALE: "100", TRUST_PROXY_HOPS: "1", FEEDS: "off", AGENT_DAILY_USD: "0.12" },
+    });
+    // One call at $0.05 teaches the budget; then 20 concurrent turns with a $0.12 cap.
+    expect((await (await askAs(t.url, 0, "warm up")).json()).mode).toBe("llm");
+    expect(t.app.budget.snapshot()).toMatchObject({ usd: 0.05, maxSeen: 0.05 });
+    const replies = (await Promise.all(Array.from({ length: 20 }, (_, i) => askAs(t!.url, i + 1, `q${i}`).then((r) => r.json())))) as Array<{ mode: string }>;
+    const { usd, maxSeen } = t.app.budget.snapshot();
+    // Each turn now reserves $0.05, so only 2 more fit: $0.15, within cap + one max-seen call.
+    // With price-based reservations alone, 3 would have run ($0.20).
+    expect(replies.filter((r) => r.mode === "llm")).toHaveLength(2);
+    expect(usd).toBeCloseTo(0.15);
+    expect(usd).toBeLessThanOrEqual(0.12 + maxSeen);
+  });
+
+  it("allows 1 LLM turn in flight per client (N5)", async () => {
+    let calls = 0;
+    llm = await startMockServer(async (_req, res) => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 300));
+      json(res, 200, completion({ content: "Fine." }));
+    });
+    t = await startTestApp({ env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, RATE_LIMIT_SCALE: "100", TRUST_PROXY_HOPS: "1", FEEDS: "off" } });
+    const same = (await Promise.all([askAs(t.url, 0, "first"), askAs(t.url, 0, "second")].map((p) => p.then((r) => r.json())))) as Array<{ mode: string; notice?: string }>;
+    expect(same.map((r) => r.mode).sort()).toEqual(["llm", "offline"]);
+    expect(same.find((r) => r.mode === "offline")!.notice).toBe(NOTICES.clientBusy);
+    const two = (await Promise.all([askAs(t.url, 1, "one"), askAs(t.url, 2, "two")].map((p) => p.then((r) => r.json())))) as Array<{ mode: string }>;
+    expect(two.map((r) => r.mode)).toEqual(["llm", "llm"]);
+    expect(calls).toBe(3);
+    expect(t.app.budget.snapshot().inflight).toBe(0);
+  });
+
+  it("aborts the LLM call when the client goes away, and frees the slot (N5)", async () => {
+    let aborted = 0;
+    llm = await startMockServer((_req, res) => {
+      res.on("close", () => {
+        if (!res.writableEnded) aborted++;
+      });
+      return new Promise(() => {}); // never answers
+    });
+    t = await startTestApp({ env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, FEEDS: "off" } });
+    const ctrl = new AbortController();
+    const pending = ask(t.url, "Tell me about the Blue Penny Museum.", undefined, ctrl.signal).catch((e: Error) => e.name);
+    await vi.waitFor(() => expect(llm!.requests).toHaveLength(1), { timeout: 3000 });
+    expect(t.app.budget.snapshot().inflight).toBe(1);
+    ctrl.abort();
+    expect(await pending).toBe("AbortError");
+    await vi.waitFor(() => expect(aborted).toBe(1), { timeout: 3000 });
+    await vi.waitFor(() => expect(t!.app.budget.snapshot().inflight).toBe(0), { timeout: 3000 });
+    expect(llm.requests).toHaveLength(1);
+    // The abandoned turn is logged as aborted, with no reply written.
+    await vi.waitFor(() => expect(t!.logs.some((l) => l.route === "/api/agent" && l.status === 499 && l.aborted === true)).toBe(true), { timeout: 3000 });
+  });
+
+  it("aborts a pending MCP call when the client goes away (N5)", async () => {
+    // The model asks for the weather; the MET feed hangs, so the MCP call is pending.
+    llm = await startMockServer((_req, res) => json(res, 200, completion({ content: null, tool_calls: [toolCall("c1", "weather_now", { area: "grand-baie" })] })));
+    t = await startTestApp({ env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions` } });
+    t.met.setHandler(() => new Promise(() => {}));
+    const ctrl = new AbortController();
+    const pending = ask(t.url, "What's the weather in Grand Baie?", undefined, ctrl.signal).catch((e: Error) => e.name);
+    await vi.waitFor(() => expect(t!.met.requests.length).toBeGreaterThanOrEqual(1), { timeout: 3000 });
+    const started = Date.now();
+    ctrl.abort();
+    expect(await pending).toBe("AbortError");
+    // Freed well before the feed's 4-second timeout would have ended the call, and no second LLM round.
+    await vi.waitFor(() => expect(t!.app.budget.snapshot().inflight).toBe(0), { timeout: 3000 });
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(llm.requests).toHaveLength(1);
   });
 
   async function directTurn(mock: MockServer, budget: ReturnType<typeof createBudget>, llmTimeoutMs = 20_000) {

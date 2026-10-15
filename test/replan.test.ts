@@ -52,7 +52,8 @@ describe("a weather report is about now (R2)", () => {
     expect(out.decision).toBe("swap");
     expect(out.window).toEqual({ label: "this evening", date: "2026-10-15", from: "18:00", to: "21:00" });
     expect(out.weather.basis).toBe("both");
-    expect(out.reason).toBe("You reported rain.");
+    // The fixture has no shopping centres, so the evening rule asks to check opening.
+    expect(out.reason).toBe("You reported rain. Evening: my list has no opening hours, so check it's still open.");
     expect(out.options.every((o) => o.rain_ok)).toBe(true);
     expect(out.speech).toMatch(/^The afternoon's over, so for this evening: since it's raining in Grand Baie, skip the beach\. Try /);
     expect(sentences(out.speech)).toHaveLength(2);
@@ -64,8 +65,11 @@ describe("a weather report is about now (R2)", () => {
       fakeDeps({ places: datasetPlaces, now: EVENING, weather: dryAll(EVENING) }),
     );
     expect(out.decision).toBe("swap");
-    expect(out.options.length).toBeGreaterThanOrEqual(2);
-    expect(out.options.every((o) => o.kind === "shopping" && o.rain_ok)).toBe(true);
+    // N2: shopping centres within a 30-minute drive come first, then the nearest other covered
+    // places within 30 minutes fill the remaining slots.
+    expect(out.options.map((o) => o.name)).toEqual(["Grand Baie La Croisette", "Mont Choisy Le Mall", "Château de Labourdonnais"]);
+    expect(out.options.slice(0, 2).every((o) => o.kind === "shopping")).toBe(true);
+    expect(out.options.every((o) => o.rain_ok && o.travel_min <= 30)).toBe(true);
     expect(out.reason).toBe("You reported rain. Evening, so shopping centres first: most museums close by late afternoon.");
     expect(sentences(out.speech)).toHaveLength(2);
     // The same request in the afternoon keeps the varied mix (a museum among the options).
@@ -75,6 +79,72 @@ describe("a weather report is about now (R2)", () => {
       fakeDeps({ places: datasetPlaces, now: AFTERNOON, weather: dryAll(AFTERNOON) }),
     );
     expect(new Set(day.options.map((o) => o.kind)).size).toBeGreaterThan(1);
+  });
+
+  it("evenings: no 50-70-minute drives where a nearer covered option exists (the reviewer's table, 17:00)", async () => {
+    const FIVE_PM = Date.UTC(2026, 9, 15, 13, 0); // 17:00 in Mauritius
+    const expected: Record<string, string[]> = {
+      souillac: ["Domaine de Saint Aubin", "Bois Chéri Tea Estate", "Rhumerie de Chamarel"],
+      "le-morne": ["Rhumerie de Chamarel", "Martello Tower Museum", "Cascavelle Mall"],
+      mahebourg: ["Bo'Valon Mall", "Mahébourg Market", "Biscuiterie Rault"],
+      "belle-mare": ["Château de Labourdonnais"],
+    };
+    for (const [area, names] of Object.entries(expected)) {
+      const out = await run({ area, window: "evening", reported_weather: "rain" }, fakeDeps({ places: datasetPlaces, now: FIVE_PM, weather: dryAll(FIVE_PM) }));
+      expect(out.options.map((o) => o.name), area).toEqual(names);
+      expect(out.options.every((o) => o.travel_min < 50), area).toBe(true);
+    }
+    // Where no shopping centre is within 30 minutes, the reason (and, when it fits, the speech) asks to check opening.
+    const souillac = await run({ area: "souillac", window: "evening", reported_weather: "rain" }, fakeDeps({ places: datasetPlaces, now: FIVE_PM, weather: dryAll(FIVE_PM) }));
+    expect(souillac.reason).toBe("You reported rain. Evening: my list has no opening hours, so check it's still open.");
+    expect(souillac.speech).toMatch(/, and check they're still open\.$/);
+    // One option reads in the singular.
+    const belleMare = await run({ area: "belle-mare", window: "evening", reported_weather: "rain" }, fakeDeps({ places: datasetPlaces, now: FIVE_PM, weather: dryAll(FIVE_PM) }));
+    expect(belleMare.options).toHaveLength(1);
+    expect(belleMare.speech).toMatch(/, and check it's still open\.$/);
+  });
+
+  it("evenings never offer a drive over 45 minutes while a covered place within 30 minutes exists (all areas, rain and heat)", async () => {
+    for (const hour of [17, 18, 19, 20]) {
+      const now = Date.UTC(2026, 9, 15, hour - 4, 10);
+      for (const area of datasetPlaces.areas) {
+        const coveredWithin30 = datasetPlaces.near(area.lat, area.lon, 35).some((c) => c.place.rain_ok && travelMinutes(c.km) <= 30);
+        for (const reported_weather of ["rain", "heat"] as const) {
+          const out = await run({ area: area.id, window: "evening", reported_weather }, fakeDeps({ places: datasetPlaces, now, weather: dryAll(now) }));
+          const longest = Math.max(...out.options.map((o) => o.travel_min));
+          if (coveredWithin30) expect(longest, `${area.id} ${hour}:10 ${reported_weather}`).toBeLessThanOrEqual(45);
+          const malls = out.options.filter((o) => o.kind === "shopping");
+          for (const m of malls) expect(m.travel_min, `${area.id} mall`).toBeLessThanOrEqual(45);
+        }
+      }
+    }
+  });
+
+  it("heat late in the day: the shade until it cools off, and the evening places from 17:00 (N1)", async () => {
+    const at = (h: number, m = 0) => Date.UTC(2026, 9, 15, h - 4, m);
+    const ask = (now: number, window: "rest_of_day" | "afternoon") =>
+      run({ area: "grand-baie", window, reported_weather: "heat" }, fakeDeps({ places: datasetPlaces, now, weather: dryAll(now) }));
+    expect((await ask(at(14), "rest_of_day")).speech).toMatch(/^It's hot in Grand Baie, so spend the middle of the day somewhere shaded and keep the beach for later\./);
+    const three = await ask(at(15, 30), "rest_of_day");
+    expect(three.speech).toMatch(/^It's hot in Grand Baie, so keep to the shade until it cools off this evening\. Try /);
+    expect(three.reason).toBe("You reported heat.");
+    const six = await ask(at(18), "rest_of_day");
+    expect(six.speech).toMatch(/^It's hot in Grand Baie, so keep to the shade until it cools off this evening\./);
+    expect(six.reason).toBe("You reported heat. Evening, so shopping centres first: most museums close by late afternoon.");
+    expect(six.options.every((o) => o.travel_min <= 30)).toBe(true);
+    const rolled = await ask(at(20, 59), "afternoon");
+    expect(rolled.speech).toMatch(/^The afternoon's over, so for this evening: it's hot in Grand Baie, so keep to the shade until it cools off later\. Try /);
+    expect(rolled.speech).not.toMatch(/middle of the day/);
+  });
+
+  it("after a rollover, keep means the evening plans, not a plan whose window is over (N7)", async () => {
+    const evening = await run({ area: "grand-baie", window: "afternoon", reported_weather: "dry" }, fakeDeps({ now: EVENING, weather: dryAll(EVENING) }));
+    expect(evening.decision).toBe("keep");
+    expect(evening.speech).toMatch(/^The afternoon's over, so for this evening: the forecast for Grand Baie looks dry, so keep your evening plans\./);
+    const restOfDay = await run({ area: "grand-baie", window: "morning", reported_weather: "dry" });
+    expect(restOfDay.speech).toMatch(/^The morning's over, so for the rest of today: the forecast for Grand Baie looks dry, so keep your plans\./);
+    // Not rolled over: still "your plan".
+    expect((await run({ area: "grand-baie", window: "afternoon" })).speech).toMatch(/so keep your plan\./);
   });
 
   it("21:30 with reported rain and a dry tomorrow: keep for tomorrow, going by the forecast", async () => {

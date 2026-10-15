@@ -1,10 +1,10 @@
 // find_places and place_details: fuzzy matching, the area radius, limits and errors.
 
 import { describe, expect, it } from "vitest";
-import { normalize } from "../src/data/match.ts";
+import { levenshtein, normalize } from "../src/data/match.ts";
 import { findPlaces, findPlacesInput, type FindPlacesOutput } from "../src/tools/find-places.ts";
 import { placeDetails, placeDetailsInput } from "../src/tools/place-details.ts";
-import { sentences } from "../src/tools/speech.ts";
+import { sentences, spokenAreaName, spokenList, spokenPlaceName } from "../src/tools/speech.ts";
 import { replanDay, replanDayInput } from "../src/tools/replan-day.ts";
 import { weatherNow, weatherNowInput } from "../src/tools/weather-now.ts";
 import { cyclone, datasetPlaces, fakeDeps, fixturePlaces, weatherOf } from "./helpers/deps.ts";
@@ -18,7 +18,8 @@ const ok = (r: ReturnType<typeof find>): FindPlacesOutput => {
 describe("matching", () => {
   it("normalizes accents, case and punctuation", () => {
     expect(normalize("Mahébourg")).toBe("mahebourg");
-    expect(normalize("  L'Aventure du SUCRE! ")).toBe("l aventure du sucre");
+    expect(normalize("  L'Aventure du SUCRE! ")).toBe("laventure du sucre");
+    expect(normalize("Trou d’Eau Douce")).toBe("trou deau douce");
   });
 
   it("finds areas by id, name, alias, accents and small typos", () => {
@@ -59,6 +60,23 @@ describe("matching against the researched dataset (R6)", () => {
       ["Le Morne Brabant", "le-morne"],
     ];
     for (const [q, id] of cases) expect(datasetPlaces.findArea(q)?.id, q).toBe(id);
+  });
+
+  it("counts a swap of two adjacent letters as one edit (N3)", () => {
+    expect(levenshtein("mahebuorg", "mahebourg")).toBe(1);
+    expect(levenshtein("ab", "ba")).toBe(1);
+    expect(levenshtein("grand bassin", "grand baie")).toBe(3);
+    const swaps: Array<[string, string]> = [
+      ["Grand Biae", "grand-baie"],
+      ["Mahebuorg", "mahebourg"],
+      ["Port Luois", "port-louis"],
+      ["Curpeipe", "curepipe"],
+      ["Chamrael", "chamarel"],
+      ["Blue Bya", "mahebourg"],
+      ["Pointe 'Esny", "mahebourg"],
+    ];
+    for (const [q, id] of swaps) expect(datasetPlaces.findArea(q)?.id, q).toBe(id);
+    for (const q of ["Grand Bassin", "Grand Bois", "Bay", "Mont"]) expect(datasetPlaces.findArea(q), q).toBeNull();
   });
 
   it("uses a place's area when the area text names a place, and says which place", async () => {
@@ -185,5 +203,30 @@ describe("weather_now speech (R14, R17)", () => {
     expect(sentences(far.value.speech).length).toBeLessThanOrEqual(2);
     const green = await weatherNow(weatherNowInput.parse({ area: "Grand Baie" }), fakeDeps({ cyclones: [cyclone("Green", 300, true)] }));
     expect(green.ok && green.value.speech).not.toMatch(/cyclone/i);
+  });
+});
+
+describe("spoken lists (N6)", () => {
+  it("reads names with a comma or 'and' as one item each", () => {
+    expect(spokenList(["Natural History Museum, Port Louis", "Blue Penny Museum"], "or")).toBe("Natural History Museum, Port Louis, or Blue Penny Museum");
+    expect(spokenList(["A, B", "C", "D"], "or")).toBe("A, B, or C, or D");
+    expect(spokenList(["Le Caudan Waterfront", "Blue Penny Museum", "Odysseo Oceanarium"], "or")).toBe("Le Caudan Waterfront, Blue Penny Museum or Odysseo Oceanarium");
+    expect(spokenPlaceName("Notre-Dame Auxiliatrice Church, Cap Malheureux")).toBe("Notre-Dame Auxiliatrice Church");
+    expect(spokenAreaName("Mahébourg and Blue Bay")).toBe("Mahébourg");
+  });
+
+  it("find_places speaks short names, so 3 places are heard as 3", () => {
+    const out = findPlaces(findPlacesInput.parse({ area: "Port Louis", kind: "museum" }), fakeDeps({ places: datasetPlaces }));
+    if (!out.ok) throw new Error(out.message);
+    expect(out.value.places[0]!.name).toBe("Natural History Museum, Port Louis");
+    expect(out.value.speech).toMatch(/^Near Port Louis, try Natural History Museum, Blue Penny Museum or L'Aventure du Sucre\./);
+  });
+
+  it("area hints use short names that are themselves accepted, with no 'and' inside a name", async () => {
+    const out = await weatherNow(weatherNowInput.parse({ area: "Blue" }), fakeDeps({ places: datasetPlaces }));
+    expect(out.ok).toBe(false);
+    const msg = !out.ok ? out.message : "";
+    expect(msg).toBe("I don't know the area 'Blue'. Try: Mahébourg, Souillac, Belle Mare, Curepipe or Black River.");
+    for (const name of msg.replace(/^.*Try: /, "").replace(/\.$/, "").split(/, | or /)) expect(datasetPlaces.findArea(name), name).not.toBeNull();
   });
 });

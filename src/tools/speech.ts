@@ -100,6 +100,29 @@ export function joinNames(names: string[], conj = "and"): string {
   return `${names.slice(0, -1).join(", ")} ${conj} ${names[names.length - 1]}`;
 }
 
+/** A place name for a spoken list: the part before a comma ("Natural History Museum, Port Louis"). */
+export function spokenPlaceName(name: string): string {
+  return name.split(/,\s*/)[0]!.trim();
+}
+
+/** An area name for a spoken list: its first part ("Mahébourg and Blue Bay" -> "Mahébourg"). */
+export function spokenAreaName(name: string): string {
+  return name.split(/\s+and\s+/i)[0]!.trim();
+}
+
+/**
+ * A list read aloud so each name is heard as one item: "A, B or C", or, if a name itself
+ * contains a comma or "and", "A, or B, or C".
+ */
+export function spokenList(names: string[], conj: "and" | "or" = "or"): string {
+  const unique = [...new Set(names)];
+  if (unique.length <= 1) return unique[0] ?? "";
+  if (unique.some((n) => n.includes(",") || /\band\b/i.test(n))) {
+    return unique.length === 2 ? `${unique[0]}, ${conj} ${unique[1]}` : `${unique.slice(0, -1).join(`, ${conj} `)}, ${conj} ${unique[unique.length - 1]}`;
+  }
+  return joinNames(unique, conj);
+}
+
 export function capitalise(s: string): string {
   return s ? s[0]!.toUpperCase() + s.slice(1) : s;
 }

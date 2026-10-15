@@ -20,7 +20,7 @@ import { type PlacesIndex, loadPlacesIndex } from "./data/places.ts";
 import { createCycloneClient, type CycloneClient } from "./feeds/cyclones.ts";
 import { createWeatherClient, type WeatherClient } from "./feeds/weather.ts";
 import { readJsonBody } from "./http/body.ts";
-import { INTERNAL_HEADER, createClientIdentity } from "./http/client-ip.ts";
+import { INTERNAL_HEADER, createClientIdentity, internalTokenAllowed } from "./http/client-ip.ts";
 import { sendJson, sendJsonRpcError, setSecurityHeaders } from "./http/headers.ts";
 import { type OriginPolicy, createOriginPolicy } from "./http/origin.ts";
 import { LIMITS, type RateLimiter, createRateLimiter } from "./http/rate-limit.ts";
@@ -95,6 +95,10 @@ export function createApp(opts: AppOptions): App {
   // echoed), which exempts them from the /mcp rate limit when no proxy relayed them.
   const internalToken = randomBytes(32).toString("base64url");
   const identity = createClientIdentity({ trustProxyHops: config.trustProxyHops, internalToken, log });
+  // The token only goes to this process: a loopback MCP_URL or the app's own HOST.
+  const sendToken = internalTokenAllowed(config.mcpUrl, config.host);
+  if (!sendToken) log({ level: "warn", event: "agent_mcp_rate_limited", detail: "MCP_URL is not loopback or HOST, so the agent's MCP calls are rate-limited" });
+  const mcpHeaders: Record<string, string> = sendToken ? { [INTERNAL_HEADER]: internalToken } : {};
 
   let port = config.port;
   const extraHosts = config.mcpUrl ? [new URL(config.mcpUrl).hostname] : [];
@@ -137,7 +141,26 @@ export function createApp(opts: AppOptions): App {
     if (!body.ok) return sendJson(res, body.status, { error: "bad_request", message: body.message }, body.status === 413 ? { Connection: "close" } : {});
     const parsed = AgentRequest.safeParse(body.value);
     if (!parsed.success) return sendJson(res, 400, { error: "bad_request", message: "Send { text } with 1 to 300 characters, and at most 6 history items." });
-    const result = await runAgentTurn(parsed.data, { config, mcpUrl: mcpUrl(), mcpHeaders: { [INTERNAL_HEADER]: internalToken }, publicOrigin: publicOrigin(), places, budget, now });
+    // Abort the turn (LLM call and pending MCP calls) if the client goes away before we answer.
+    const gone = new AbortController();
+    res.on("close", () => {
+      if (!res.writableEnded) gone.abort();
+    });
+    const result = await runAgentTurn(parsed.data, {
+      config,
+      mcpUrl: mcpUrl(),
+      mcpHeaders,
+      publicOrigin: publicOrigin(),
+      places,
+      budget,
+      now,
+      clientKey: identity.key(req),
+      signal: gone.signal,
+    });
+    if (gone.signal.aborted) {
+      meta.mode = "aborted";
+      return;
+    }
     meta.mode = result.mode;
     meta.tools = result.trace.map((t) => t.tool);
     sendJson(res, 200, result);
@@ -180,6 +203,11 @@ export function createApp(opts: AppOptions): App {
     setSecurityHeaders(res, https());
     res.on("finish", () => {
       log({ route: meta.route, method: req.method ?? "", status: res.statusCode, ms: Math.round(performance.now() - started), mode: meta.mode, tools: meta.tools });
+    });
+    // A client that goes away before the response: one line too (499, as proxies log it).
+    res.on("close", () => {
+      if (res.writableFinished) return;
+      log({ route: meta.route, method: req.method ?? "", status: 499, aborted: true, ms: Math.round(performance.now() - started), mode: meta.mode, tools: meta.tools });
     });
 
     const rawPath = (req.url ?? "/").split("?")[0] || "/";

@@ -3,11 +3,12 @@
 import { request } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import type { IncomingMessage } from "node:http";
-import { cleanForwardedEntry, createClientIdentity, rateKey } from "../src/http/client-ip.ts";
+import { cleanForwardedEntry, createClientIdentity, internalTokenAllowed, rateKey } from "../src/http/client-ip.ts";
 import { createOriginPolicy } from "../src/http/origin.ts";
 import { createRateLimiter } from "../src/http/rate-limit.ts";
 import type { LogRecord } from "../src/log.ts";
 import { INIT_PARAMS, MCP_HEADERS, type TestApp, rpc, startTestApp } from "./helpers/app.ts";
+import { json, startMockServer } from "./helpers/mock-server.ts";
 
 let t: TestApp | undefined;
 afterEach(async () => {
@@ -167,6 +168,35 @@ describe("client keys (R4, R9)", () => {
     expect(statuses).toEqual([401, 401, 401, 401, 401, 429, 429]);
     // Another /64 is another client.
     expect((await unlock(v6(3, 1))).status).toBe(401);
+  });
+});
+
+describe("where the internal token may go (N7)", () => {
+  it("only to a loopback MCP_URL or the app's own HOST", () => {
+    expect(internalTokenAllowed(undefined, undefined)).toBe(true);
+    expect(internalTokenAllowed("http://127.0.0.1:8080/mcp", undefined)).toBe(true);
+    expect(internalTokenAllowed("http://localhost:8080/mcp", undefined)).toBe(true);
+    expect(internalTokenAllowed("http://[::1]:8080/mcp", undefined)).toBe(true);
+    expect(internalTokenAllowed("https://alexa.ambree.ai/mcp", undefined)).toBe(false);
+    expect(internalTokenAllowed("http://ambree.ai:8080/mcp", "ambree.ai")).toBe(true);
+    expect(internalTokenAllowed("http://ambree.ai:8080/mcp", "localhost")).toBe(false);
+  });
+
+  it("sends the token to a loopback MCP_URL", async () => {
+    const sniffer = await startMockServer((_req, res) => json(res, 500, {}));
+    t = await startTestApp({ env: { MCP_URL: `http://localhost:${new URL(sniffer.url).port}/mcp`, FEEDS: "off" } });
+    await fetch(`${t.url}/api/agent`, { method: "POST", headers: { "Content-Type": "application/json", "X-Requested-With": "ambree" }, body: JSON.stringify({ text: "hello" }) });
+    expect(sniffer.requests.length).toBeGreaterThan(0);
+    expect(sniffer.requests[0]!.headers["x-ambree-internal"]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(t.logs.some((l) => l.event === "agent_mcp_rate_limited")).toBe(false);
+    await sniffer.close();
+  });
+
+  it("omits it for any other host, and logs once that the agent's MCP calls are rate-limited", async () => {
+    t = await startTestApp({ env: { MCP_URL: "https://alexa.ambree.ai/mcp", FEEDS: "off" } });
+    const warnings = t.logs.filter((l) => l.event === "agent_mcp_rate_limited");
+    expect(warnings).toHaveLength(1);
+    expect(JSON.stringify(warnings)).not.toMatch(/alexa\.ambree\.ai/);
   });
 });
 

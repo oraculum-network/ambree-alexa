@@ -1,12 +1,15 @@
 // Accent-insensitive, typo-tolerant matching for area and place names.
 
-/** "Mahébourg!" -> "mahebourg"; "L'Aventure du Sucre" -> "l aventure du sucre". */
+/**
+ * "Mahébourg!" -> "mahebourg"; "L'Aventure du Sucre" -> "laventure du sucre". Apostrophes
+ * are dropped rather than spaced, so "Pointe 'Esny" is one edit from "Pointe d'Esny".
+ */
 export function normalize(s: string): string {
   return s
     .normalize("NFD")
     .replace(/\p{M}+/gu, "")
     .toLowerCase()
-    .replace(/[’'`]/g, " ")
+    .replace(/[’'`]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
@@ -16,17 +19,25 @@ export function stripArticle(s: string): string {
   return s.replace(/^(the|a|an|le|la|les|l)\s+/, "");
 }
 
+/**
+ * Optimal-string-alignment (restricted Damerau-Levenshtein) distance: insertions, deletions,
+ * substitutions and swaps of two adjacent letters each cost 1, so "Mahebuorg" is one edit
+ * from "Mahebourg", as a typist would count it.
+ */
 export function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   if (!a.length) return b.length;
   if (!b.length) return a.length;
+  let prev2: number[] = [];
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     const cur = [i];
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j]!, prev2[j - 2]! + 1);
     }
+    prev2 = prev;
     prev = cur;
   }
   return prev[b.length]!;

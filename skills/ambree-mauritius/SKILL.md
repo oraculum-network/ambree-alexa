@@ -41,6 +41,8 @@ Areas can be named loosely: "Mahebourg", "Mahébourg" and "Blue Bay" all work, a
   (or, from 21:00, tomorrow from the forecast alone) and its speech says so.
 - **Errors.** A result with `isError: true` has a short, readable message (for example, a list of known
   areas). Fix the argument and try once more, or read the message to the traveller.
+- **Evenings.** Opening hours aren't in the data, so from 17:00 `replan_day` prefers shopping centres within a
+  30-minute drive; otherwise its `reason` asks to check the place is still open.
 - Travel times are approximate ("about 20 minutes") and measured from the area's centre.
 
 ## Credit

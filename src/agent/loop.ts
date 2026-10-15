@@ -26,6 +26,7 @@ export const NOTICES = {
   credit: "The AI service is out of credit, so I'm answering in offline mode.",
   down: "The AI model didn't respond, so I'm answering in offline mode.",
   busy: "Lots of people are asking right now, so I'm answering in offline mode.",
+  clientBusy: "Your last question is still being answered, so I'm answering this one in offline mode.",
 } as const;
 
 export interface AgentInput {
@@ -54,6 +55,10 @@ export interface AgentDeps {
   fetch?: typeof fetch;
   /** Per-call LLM timeout (tests shorten it). */
   llmTimeoutMs?: number;
+  /** Who is asking (the rate-limit key): one LLM turn in flight per client. */
+  clientKey?: string;
+  /** Aborted when the HTTP request goes away: stops the LLM call and pending MCP calls. */
+  signal?: AbortSignal;
 }
 
 export function systemPrompt(now: number): string {
@@ -164,7 +169,9 @@ async function llmTurn(input: AgentInput, session: McpSession, deps: AgentDeps, 
 
 export async function runAgentTurn(input: AgentInput, deps: AgentDeps): Promise<AgentReply> {
   const trace: TraceEntry[] = [];
-  const turnSignal = AbortSignal.timeout(TURN_TIMEOUT_MS);
+  const gone = deps.signal ? [deps.signal] : [];
+  const turnSignal = AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...gone]);
+  const clientKey = deps.clientKey ?? "local";
   let session: McpSession;
   try {
     session = await openMcpSession(deps.mcpUrl, trace, turnSignal, deps.mcpHeaders);
@@ -175,20 +182,22 @@ export async function runAgentTurn(input: AgentInput, deps: AgentDeps): Promise<
     if (!deps.config.openrouterKey) {
       return { reply: await offlineTurn(input.text, session, deps.places, turnSignal), mode: "offline", trace };
     }
-    const gate = deps.budget.beginTurn();
+    const gate = deps.budget.beginTurn(clientKey);
     if (!gate.ok) {
-      const notice = gate.reason === "busy" ? NOTICES.busy : NOTICES.budget;
+      const notice = gate.reason === "busy" ? NOTICES.busy : gate.reason === "client_busy" ? NOTICES.clientBusy : NOTICES.budget;
       return { reply: await offlineTurn(input.text, session, deps.places, turnSignal), mode: "offline", trace, notice };
     }
     try {
       const { reply, model } = await llmTurn(input, session, deps, turnSignal);
       return { reply, mode: "llm", model, trace };
     } catch (e) {
+      // The traveller has gone: don't spend more work on an answer nobody will hear.
+      if (deps.signal?.aborted) return { reply: "", mode: "offline", trace };
       const notice = e instanceof BudgetSpent ? NOTICES.budget : noticeFor(e);
-      const fallbackSignal = AbortSignal.timeout(10_000);
+      const fallbackSignal = AbortSignal.any([AbortSignal.timeout(10_000), ...gone]);
       return { reply: await offlineTurn(input.text, session, deps.places, fallbackSignal), mode: "offline", trace, notice };
     } finally {
-      deps.budget.endTurn();
+      deps.budget.endTurn(clientKey);
     }
   } finally {
     await session.close();
