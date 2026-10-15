@@ -4,7 +4,7 @@
 **simulated Alexa+ voice page** that is a real MCP client of it. Say *"It's raining in Grand Baie. Re-plan my
 afternoon."*: Ambree checks the live forecast, swaps the beach for covered places nearby, and says so in two sentences.
 
-- **Live demo:** https://alexa.ambree.ai (the passcode is in the Devpost testing instructions)
+- **Live demo:** https://alexa.ambree.ai (online before judging, until 20 November 2026; the passcode is in the Devpost testing instructions). To run it yourself, see the quick start below: it needs no account or key.
 - **MCP endpoint:** `https://alexa.ambree.ai/mcp` (open, no passcode)
 
 ## Quick start
