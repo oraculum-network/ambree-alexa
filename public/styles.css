@@ -1,0 +1,767 @@
+/* Ambree for Alexa+: the voice page. Self-hosted fonts, no external requests.
+   Tokens from the Ambree brand: paper, ink, the flame CTA, the evening dark mode,
+   and the amber glint, which lives only inside the logo. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/fonts/InstrumentSans.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --paper: #f7f2e8;
+  --paper-2: #efe7d6;
+  --surface: #fffdf8;
+  --ink: #10292b;
+  --ink-2: #33494b;
+  --ink-3: #536667;
+  --line: #e4dbc9;
+  --line-strong: #d6ccb8;
+  --primary: #0f5257;
+  --primary-soft: #e3eeec;
+  --flame: #c2410c;
+  --flame-deep: #a3360a;
+  --on-flame: #ffffff;
+  --logo-sun: #c9661a; /* the logo glint only, never text */
+  --shadow: 0 1px 2px rgb(16 41 43 / 6%), 0 12px 32px -18px rgb(16 41 43 / 28%);
+  --radius: 18px;
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Evening. */
+    --paper: #0b1a1c;
+    --paper-2: #10292b;
+    --surface: #132b2e;
+    --ink: #f7f2e8;
+    --ink-2: #d5cec0;
+    --ink-3: #a7a295;
+    --line: #1f3739;
+    --line-strong: #2b4446;
+    --primary: #8fd0cb;
+    --primary-soft: #133a3c;
+    --flame: #f08a5b;
+    --flame-deep: #f39c74;
+    --on-flame: #0b1a1c;
+    --logo-sun: #f39350;
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 14px 36px -20px rgb(0 0 0 / 70%);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 10;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 999px;
+  text-decoration: none;
+}
+.skip:focus {
+  top: 12px;
+}
+
+/* Small uppercase labels: IBM Plex Mono. */
+.label,
+.tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 400;
+  margin: 0;
+}
+
+/* ---- Masthead: the lockup over a thin horizon rule, like the logo's. ---- */
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 20px 20px 16px;
+  border-bottom: 2px solid var(--ink);
+}
+.brand {
+  display: inline-flex;
+  border-radius: 999px;
+}
+.brand img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+.tag {
+  text-align: right;
+  color: var(--ink-2);
+}
+
+/* ---- Layout. ---- */
+.layout {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 28px 20px 8px;
+  display: grid;
+  gap: 28px;
+}
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 48px;
+    padding-top: 40px;
+  }
+  .side {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+  }
+}
+
+.stage {
+  min-width: 0;
+}
+
+.display {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 6.4vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  margin: 10px 0 12px;
+}
+.display em {
+  font-style: italic;
+  color: var(--primary);
+}
+
+.explainer {
+  margin: 0 0 22px;
+  color: var(--ink-2);
+  max-width: 34rem;
+}
+
+/* ---- Trip card: a luggage-tag feel. ---- */
+.trip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.trip-line {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+/* ---- The mic. ---- */
+.voice {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 0 22px;
+}
+.mic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--flame);
+  color: var(--on-flame);
+  cursor: pointer;
+  box-shadow: 0 18px 40px -18px rgb(194 65 12 / 70%), inset 0 -6px 14px rgb(0 0 0 / 12%);
+  transition: transform 160ms ease, background-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.mic:hover {
+  background: var(--flame-deep);
+}
+.mic:active {
+  transform: scale(0.97);
+}
+.mic:focus-visible {
+  outline-offset: 6px;
+  border-radius: 50%;
+}
+.mic .ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 2px solid var(--flame);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.mic .dots {
+  display: none;
+  gap: 6px;
+}
+.mic .dots span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+}
+.mic[data-state="listening"] .ring {
+  opacity: 0.5;
+  animation: breathe 1.7s ease-in-out infinite;
+}
+.mic[data-state="thinking"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.mic[data-state="thinking"] .mic-icon {
+  display: none;
+}
+.mic[data-state="thinking"] .dots {
+  display: flex;
+}
+.mic[data-state="thinking"] .dots span {
+  animation: blink 1.2s ease-in-out infinite;
+}
+.mic[data-state="thinking"] .dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mic[data-state="thinking"] .dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.mic[data-state="thinking"] .ring {
+  border-color: var(--ink);
+  border-style: dashed;
+  opacity: 0.35;
+  animation: spin 6s linear infinite;
+}
+.mic[data-state="speaking"] {
+  background: var(--primary);
+  color: var(--paper);
+}
+.mic[data-state="speaking"] .ring {
+  border-color: var(--primary);
+  opacity: 0.45;
+  animation: breathe 1.1s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.12;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.mic-status {
+  margin: 10px 0 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  text-align: center;
+}
+.interim {
+  margin: 0;
+  min-height: 1.5em;
+  max-width: 30rem;
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--ink-2);
+}
+.no-voice {
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.voice-toggle {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.voice-toggle[aria-pressed="false"] {
+  color: var(--ink-3);
+  border-style: dashed;
+}
+.voice-toggle:hover {
+  background: var(--paper-2);
+}
+
+/* ---- Typed input. ---- */
+.ask {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.ask input {
+  flex: 1;
+  min-width: 0;
+  height: 50px;
+  padding: 0 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+.ask input::placeholder {
+  color: var(--ink-3);
+}
+.ask input:focus-visible {
+  outline-offset: 2px;
+  border-radius: 999px;
+  border-color: var(--primary);
+}
+.send {
+  flex: none;
+  height: 50px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.send:hover {
+  background: var(--primary);
+}
+.send:focus-visible {
+  border-radius: 999px;
+}
+button:disabled,
+input:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* ---- Suggestion chips. ---- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 30px;
+}
+.chips .label {
+  width: 100%;
+  margin-bottom: 2px;
+}
+.chip {
+  max-width: 100%;
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  white-space: normal;
+}
+.chip:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+.chip:focus-visible {
+  border-radius: 999px;
+}
+
+/* ---- Conversation: a travel journal. ---- */
+.conversation {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 18px;
+}
+.log {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.msg {
+  display: grid;
+  gap: 4px;
+}
+.who {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.msg-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.msg-you .msg-text {
+  color: var(--ink-2);
+}
+.msg-ambree {
+  padding-left: 16px;
+  border-left: 2px solid var(--primary);
+}
+.msg-ambree .msg-text {
+  font-family: var(--serif);
+  font-size: 1.42rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.notice {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-3);
+}
+.empty {
+  margin: 10px 0 0;
+  color: var(--ink-3);
+  font-size: 0.92rem;
+}
+
+/* ---- Under the hood. ---- */
+.side {
+  min-width: 0;
+}
+.hood {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 4px 18px 16px;
+}
+.hood summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.hood summary::-webkit-details-marker {
+  display: none;
+}
+.hood summary::after {
+  content: "+";
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+.hood[open] summary::after {
+  content: "−";
+}
+.hood summary .label {
+  color: var(--ink);
+}
+.hood-sub {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: var(--ink-3);
+}
+.hood-intro {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+.hood-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  font-size: 0.88rem;
+  color: var(--ink-3);
+}
+.turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.hood-turn {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.hood-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hood-n {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+.badge-llm {
+  background: var(--primary);
+  color: var(--paper);
+}
+.badge-offline {
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+}
+.hood-q {
+  margin: 8px 0 6px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.hood-notice,
+.hood-none {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  color: var(--ink-3);
+}
+.calls {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.call {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+.call-name {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--ink);
+}
+.call-meta {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  text-align: right;
+}
+.call-args {
+  grid-column: 1 / -1;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+  overflow-wrap: break-word;
+}
+.call-failed {
+  background: transparent;
+  border: 1px dashed var(--flame);
+}
+
+/* ---- Footer. ---- */
+.foot {
+  max-width: 1160px;
+  margin: 36px auto 0;
+  padding: 18px 20px 32px;
+  border-top: 1px solid var(--line-strong);
+  font-size: 0.82rem;
+  color: var(--ink-3);
+}
+.foot p {
+  margin: 0 0 6px;
+}
+
+/* ---- Unlock page. ---- */
+.unlock {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 56px 20px 24px;
+}
+.unlock-form {
+  margin-top: 8px;
+}
+.unlock-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--flame);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* ---- Small screens. ---- */
+@media (max-width: 480px) {
+  .masthead {
+    padding: 14px 16px 12px;
+  }
+  .brand img {
+    height: 32px;
+  }
+  .tag {
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+  }
+  .layout {
+    padding: 22px 16px 4px;
+  }
+  .mic {
+    width: 116px;
+    height: 116px;
+  }
+  .send {
+    padding: 0 18px;
+  }
+  .foot {
+    padding: 16px 16px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

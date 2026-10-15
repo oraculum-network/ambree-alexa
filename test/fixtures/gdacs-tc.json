@@ -1,0 +1,52 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [55.9, -17.8] },
+      "properties": {
+        "eventtype": "TC", "eventid": 1001234, "name": "Tropical Cyclone ALPHA-26", "alertlevel": "Orange",
+        "iscurrent": "true", "todate": "2026-10-15T06:00:00",
+        "severitydata": { "severitytext": "Tropical Cyclone (maximum wind speed of 150 km/h)" },
+        "affectedcountries": [{ "iso3": "MUS", "countryname": "Mauritius" }, { "iso3": "REU" }]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [64.0, -14.0] },
+      "properties": {
+        "eventtype": "TC", "eventid": "1001235", "eventname": "BRAVO", "alertlevel": "Green",
+        "iscurrent": true, "todate": "2026-10-15T00:00:00", "affectedcountries": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [140.0, 15.0] },
+      "properties": {
+        "eventtype": "TC", "eventid": 1001236, "name": "Typhoon CHARLIE-26", "alertlevel": "Red",
+        "iscurrent": "true", "todate": "2026-10-15T03:00:00", "affectedcountries": [{ "iso3": "PHL" }]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [57.0, -21.0] },
+      "properties": {
+        "eventtype": "TC", "eventid": 1001237, "name": "Tropical Cyclone DELTA-26", "alertlevel": "Red",
+        "iscurrent": "false", "todate": "2026-10-14T00:00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [58.0, -19.0] },
+      "properties": {
+        "eventtype": "TC", "eventid": 1001238, "name": "Tropical Cyclone ECHO-26", "alertlevel": "Red",
+        "iscurrent": "true", "todate": "2026-10-10T00:00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [57.6, -20.1] },
+      "properties": { "eventtype": "EQ", "eventid": 99, "alertlevel": "Red", "iscurrent": "true", "todate": "2026-10-15T06:00:00" }
+    }
+  ]
+}

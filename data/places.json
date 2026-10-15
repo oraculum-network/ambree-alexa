@@ -1,0 +1,1234 @@
+{
+  "version": 1,
+  "region": "mauritius",
+  "researched_at": "2026-10-15",
+  "areas": [
+    {
+      "id": "grand-baie",
+      "name": "Grand Baie",
+      "coast": "north",
+      "lat": -20.013,
+      "lon": 57.584,
+      "aliases": [
+        "Grand Bay",
+        "Grand-Baie",
+        "Pereybere"
+      ]
+    },
+    {
+      "id": "trou-aux-biches",
+      "name": "Trou aux Biches and Mont Choisy",
+      "coast": "north-west",
+      "lat": -20.038,
+      "lon": 57.543,
+      "aliases": [
+        "Trou-aux-Biches",
+        "Mont Choisy",
+        "Pointe aux Piments"
+      ]
+    },
+    {
+      "id": "pamplemousses",
+      "name": "Pamplemousses",
+      "coast": "north",
+      "lat": -20.104,
+      "lon": 57.57,
+      "aliases": []
+    },
+    {
+      "id": "port-louis",
+      "name": "Port Louis",
+      "coast": "north-west",
+      "lat": -20.164,
+      "lon": 57.504,
+      "aliases": [
+        "Port-Louis",
+        "the capital"
+      ]
+    },
+    {
+      "id": "moka",
+      "name": "Moka",
+      "coast": "central",
+      "lat": -20.219,
+      "lon": 57.496,
+      "aliases": [
+        "Moka hills"
+      ]
+    },
+    {
+      "id": "curepipe",
+      "name": "Curepipe and the central plateau",
+      "coast": "central",
+      "lat": -20.319,
+      "lon": 57.526,
+      "aliases": [
+        "Curepipe",
+        "Floreal",
+        "Floréal"
+      ]
+    },
+    {
+      "id": "flic-en-flac",
+      "name": "Flic en Flac",
+      "coast": "west",
+      "lat": -20.28,
+      "lon": 57.366,
+      "aliases": [
+        "Flic-en-Flac",
+        "Wolmar",
+        "Cascavelle"
+      ]
+    },
+    {
+      "id": "black-river",
+      "name": "Black River and Tamarin",
+      "coast": "west",
+      "lat": -20.36,
+      "lon": 57.37,
+      "aliases": [
+        "Rivière Noire",
+        "Riviere Noire",
+        "Tamarin",
+        "La Preneuse"
+      ]
+    },
+    {
+      "id": "chamarel",
+      "name": "Chamarel",
+      "coast": "south-west",
+      "lat": -20.425,
+      "lon": 57.391,
+      "aliases": []
+    },
+    {
+      "id": "le-morne",
+      "name": "Le Morne",
+      "coast": "south-west",
+      "lat": -20.452,
+      "lon": 57.328,
+      "aliases": [
+        "Le Morne Brabant"
+      ]
+    },
+    {
+      "id": "souillac",
+      "name": "Souillac and Bel Ombre",
+      "coast": "south",
+      "lat": -20.517,
+      "lon": 57.517,
+      "aliases": [
+        "Bel Ombre",
+        "Bois Chéri",
+        "Bois Cheri"
+      ]
+    },
+    {
+      "id": "mahebourg",
+      "name": "Mahébourg and Blue Bay",
+      "coast": "south-east",
+      "lat": -20.408,
+      "lon": 57.7,
+      "aliases": [
+        "Mahebourg",
+        "Blue Bay",
+        "Pointe d'Esny"
+      ]
+    },
+    {
+      "id": "belle-mare",
+      "name": "Belle Mare and Trou d'Eau Douce",
+      "coast": "east",
+      "lat": -20.19,
+      "lon": 57.77,
+      "aliases": [
+        "Belle Mare",
+        "Trou d'Eau Douce",
+        "Ile aux Cerfs",
+        "Île aux Cerfs"
+      ]
+    }
+  ],
+  "places": [
+    {
+      "id": "la-cuvette-beach",
+      "name": "La Cuvette Beach",
+      "area": "grand-baie",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.007,
+      "lon": 57.578,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "family"
+      ],
+      "blurb": "A small public beach on the north-west edge of Grand Baie, quieter than the main bay and popular with families.",
+      "speech": "La Cuvette is a small, quiet public beach on the edge of Grand Baie.",
+      "notes": null,
+      "source": "https://wanderlog.com/place/details/554074",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "la-croisette-mall",
+      "name": "Grand Baie La Croisette",
+      "area": "grand-baie",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.013,
+      "lon": 57.584,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food"
+      ],
+      "blurb": "Grand Baie's large shopping mall, with fashion and home stores, an Intermart hypermarket, sit-down restaurants and a food pavilion.",
+      "speech": "La Croisette is Grand Baie's big shopping mall, with shops, a hypermarket and plenty of places to eat.",
+      "notes": "Open every day, per the official site.",
+      "source": "https://gblc.mu/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "cap-malheureux-church",
+      "name": "Notre-Dame Auxiliatrice Church, Cap Malheureux",
+      "area": "grand-baie",
+      "kind": "culture",
+      "setting": "mixed",
+      "rain_ok": false,
+      "duration_min": 30,
+      "lat": -19.987,
+      "lon": 57.622,
+      "coords_approx": false,
+      "tags": [
+        "culture",
+        "view"
+      ],
+      "blurb": "A small red-roofed church at the northern tip of the island, facing the islet of Coin de Mire; inside, the holy-water basin is a giant clam shell.",
+      "speech": "The little red-roofed church at Cap Malheureux, near Grand Baie, looks out over the sea to Coin de Mire.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/cap-malheureux-church/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "trou-aux-biches-beach",
+      "name": "Trou aux Biches Beach",
+      "area": "trou-aux-biches",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.038,
+      "lon": 57.543,
+      "coords_approx": true,
+      "tags": [
+        "swim",
+        "snorkel",
+        "sunset"
+      ],
+      "blurb": "A north-west beach shaded by casuarina trees, with a calm lagoon for snorkelling, dive schools close by and good sunsets.",
+      "speech": "Trou aux Biches beach has a calm lagoon for snorkelling and lovely sunsets.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/trou-aux-biches-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "mont-choisy-beach",
+      "name": "Mont Choisy Beach",
+      "area": "trou-aux-biches",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.015,
+      "lon": 57.556,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "snorkel"
+      ],
+      "blurb": "A long curve of white sand lined with casuarinas between Trou aux Biches and Grand Baie, with calm, clear water for swimming and snorkelling.",
+      "speech": "Mont Choisy beach is a long stretch of white sand with calm water, good for a swim.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/mont-choisy-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "maheswarnath-mandir",
+      "name": "Maheswarnath Mandir",
+      "area": "trou-aux-biches",
+      "kind": "temple",
+      "setting": "mixed",
+      "rain_ok": false,
+      "duration_min": 45,
+      "lat": -20.042,
+      "lon": 57.552,
+      "coords_approx": false,
+      "tags": [
+        "culture"
+      ],
+      "blurb": "Founded in 1888 in Triolet, this Shiva temple complex is the largest Hindu temple in Mauritius, with several smaller shrines and colourful sculptures.",
+      "speech": "Maheswarnath Mandir in Triolet is the largest Hindu temple in Mauritius, dedicated to Shiva.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/maheswarnath-mandir/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "mont-choisy-le-mall",
+      "name": "Mont Choisy Le Mall",
+      "area": "trou-aux-biches",
+      "kind": "shopping",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.015,
+      "lon": 57.556,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food"
+      ],
+      "blurb": "A lifestyle shopping centre at Mont Choisy with a supermarket, small boutiques of local products, delicatessens and Italian, Japanese and Indian restaurants.",
+      "speech": "Mont Choisy Le Mall has a supermarket, small shops and restaurants, close to Trou aux Biches.",
+      "notes": null,
+      "source": "https://www.montchoisy.com/commercial/mall-of-mont-choisy/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "ssr-botanic-garden",
+      "name": "Sir Seewoosagur Ramgoolam Botanic Garden",
+      "area": "pamplemousses",
+      "kind": "garden",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.108,
+      "lon": 57.577,
+      "coords_approx": false,
+      "tags": [
+        "garden",
+        "nature",
+        "history"
+      ],
+      "blurb": "A historic botanic garden in Pamplemousses, famous for its pond of giant water lilies, its many palms and spice trees, and resident giant tortoises.",
+      "speech": "The Pamplemousses botanic garden is famous for its giant water lilies, palm trees and giant tortoises.",
+      "notes": null,
+      "source": "https://ssrbg.govmu.org/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "laventure-du-sucre",
+      "name": "L'Aventure du Sucre",
+      "area": "pamplemousses",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.104,
+      "lon": 57.57,
+      "coords_approx": true,
+      "tags": [
+        "museum",
+        "history",
+        "food",
+        "rum",
+        "family"
+      ],
+      "blurb": "A museum inside an old sugar mill at Beau Plan that tells the island's story through sugar, ending with tastings of sugarcane products and rum.",
+      "speech": "L'Aventure du Sucre is a museum in an old sugar mill near Pamplemousses, with tastings at the end.",
+      "notes": "Open Monday to Saturday, including public holidays, per the official site.",
+      "source": "https://www.aventuredusucre.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "chateau-de-labourdonnais",
+      "name": "Château de Labourdonnais",
+      "area": "pamplemousses",
+      "kind": "history",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 150,
+      "lat": -20.074,
+      "lon": 57.618,
+      "coords_approx": false,
+      "tags": [
+        "history",
+        "rum",
+        "food",
+        "garden"
+      ],
+      "blurb": "A restored 19th-century colonial mansion in the north, with period furniture, an underground museum, gardens and tastings of the estate's rums, juices and jams.",
+      "speech": "Château de Labourdonnais is a restored colonial mansion with a museum and tastings of its own rums and juices.",
+      "notes": null,
+      "source": "https://www.domainedelabourdonnais.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "port-louis-central-market",
+      "name": "Port Louis Central Market",
+      "area": "port-louis",
+      "kind": "market",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.164,
+      "lon": 57.504,
+      "coords_approx": true,
+      "tags": [
+        "market",
+        "food",
+        "shopping"
+      ],
+      "blurb": "The capital's busy market hall, piled with tropical fruit and vegetables, with local crafts on the first floor and kiosks selling dholl puri and alouda.",
+      "speech": "Port Louis Central Market is a lively covered market with fruit, crafts upstairs and local street food.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/port-louis-market/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "le-caudan-waterfront",
+      "name": "Le Caudan Waterfront",
+      "area": "port-louis",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.162,
+      "lon": 57.498,
+      "coords_approx": false,
+      "tags": [
+        "shopping",
+        "food",
+        "culture"
+      ],
+      "blurb": "A harbourside complex in Port Louis, open since 1996, with shops, cafés, restaurants, a cinema, an arts centre and the Blue Penny Museum.",
+      "speech": "Le Caudan Waterfront in Port Louis has shops, restaurants, a cinema and a museum, right on the harbour.",
+      "notes": null,
+      "source": "https://www.caudan.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "blue-penny-museum",
+      "name": "Blue Penny Museum",
+      "area": "port-louis",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.161,
+      "lon": 57.498,
+      "coords_approx": false,
+      "tags": [
+        "museum",
+        "history"
+      ],
+      "blurb": "A museum at Le Caudan Waterfront covering Mauritian history, old maps and art, home to the famous Mauritius Post Office stamps and a Paul and Virginie sculpture.",
+      "speech": "The Blue Penny Museum at Le Caudan shows the island's rare Post Office stamps, old maps and art.",
+      "notes": "Closed on Sundays and public holidays, per the official site.",
+      "source": "https://www.bluepenny.museum/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "natural-history-museum-port-louis",
+      "name": "Natural History Museum, Port Louis",
+      "area": "port-louis",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.163,
+      "lon": 57.502,
+      "coords_approx": false,
+      "tags": [
+        "museum",
+        "history"
+      ],
+      "blurb": "The oldest museum in Mauritius, in the Mauritius Institute building, best known for its dodo skeleton, alongside birds, shells, insects and geology displays.",
+      "speech": "The Natural History Museum in Port Louis is the island's oldest museum, best known for its dodo skeleton.",
+      "notes": "Open weekdays and Saturday mornings, per the Mauritius Museums Council.",
+      "source": "https://mauritiusmuseums.govmu.org/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "aapravasi-ghat",
+      "name": "Aapravasi Ghat",
+      "area": "port-louis",
+      "kind": "history",
+      "setting": "mixed",
+      "rain_ok": false,
+      "duration_min": 60,
+      "lat": -20.159,
+      "lon": 57.503,
+      "coords_approx": false,
+      "tags": [
+        "unesco",
+        "history",
+        "culture"
+      ],
+      "blurb": "World Heritage remains of the immigration depot where hundreds of thousands of indentured labourers, mostly from India, arrived after slavery was abolished.",
+      "speech": "Aapravasi Ghat in Port Louis is the World Heritage depot where indentured workers first arrived in Mauritius.",
+      "notes": null,
+      "source": "https://aapravasi.govmu.org/aapravasi/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "odysseo-oceanarium",
+      "name": "Odysseo Oceanarium",
+      "area": "port-louis",
+      "kind": "wildlife",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.164,
+      "lon": 57.504,
+      "coords_approx": true,
+      "tags": [
+        "family",
+        "kids",
+        "wildlife"
+      ],
+      "blurb": "An indoor oceanarium on the Port Louis waterfront with around 300 marine species, shark and stingray encounters, and a focus on ocean conservation.",
+      "speech": "Odysseo is an indoor oceanarium in Port Louis with sharks, rays and hundreds of sea creatures.",
+      "notes": "Last entry is at 4:15 pm, per the official site.",
+      "source": "https://odysseomauritius.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "eureka-house",
+      "name": "Eureka House",
+      "area": "moka",
+      "kind": "history",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.219,
+      "lon": 57.496,
+      "coords_approx": true,
+      "tags": [
+        "history",
+        "museum",
+        "garden"
+      ],
+      "blurb": "A colonial mansion in Moka from around 1836, built of local hardwoods and now a museum with period furniture, set in gardens with small waterfalls.",
+      "speech": "Eureka is a colonial mansion museum in Moka, with period furniture and gardens leading down to waterfalls.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/eureka-house/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "bagatelle-mall",
+      "name": "Bagatelle Mall",
+      "area": "moka",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 150,
+      "lat": -20.219,
+      "lon": 57.496,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food",
+        "family"
+      ],
+      "blurb": "A large mall in Moka with more than 150 stores, a food market and restaurants, a cinema, bowling and an indoor play area for children.",
+      "speech": "Bagatelle Mall in Moka has over a hundred and fifty shops, a cinema, bowling and plenty of food.",
+      "notes": null,
+      "source": "https://www.ascenciamalls.com/bagatelle-mall",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "le-pouce",
+      "name": "Le Pouce",
+      "area": "moka",
+      "kind": "hike",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 210,
+      "lat": -20.197,
+      "lon": 57.529,
+      "coords_approx": false,
+      "tags": [
+        "hike",
+        "view"
+      ],
+      "blurb": "A climb to the 812-metre thumb-shaped summit between Moka and Port Louis, with a rocky final scramble and wide views; Charles Darwin went up in 1836.",
+      "speech": "Le Pouce is a half-day hike to a thumb-shaped peak with sweeping views over Port Louis.",
+      "notes": "Start early to avoid the heat, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/le-pouce/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "trou-aux-cerfs",
+      "name": "Trou aux Cerfs",
+      "area": "curepipe",
+      "kind": "viewpoint",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 45,
+      "lat": -20.315,
+      "lon": 57.505,
+      "coords_approx": false,
+      "tags": [
+        "view",
+        "nature"
+      ],
+      "blurb": "A dormant volcanic crater in Curepipe, about 80 metres deep with a small lake at the bottom; the 605-metre rim gives wide views over the island.",
+      "speech": "Trou aux Cerfs is a forested volcanic crater in Curepipe with views across the island from its rim.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/trou-aux-cerfs-volcano/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "domaine-des-aubineaux",
+      "name": "Domaine des Aubineaux",
+      "area": "curepipe",
+      "kind": "history",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.319,
+      "lon": 57.526,
+      "coords_approx": true,
+      "tags": [
+        "history",
+        "museum",
+        "garden",
+        "food"
+      ],
+      "blurb": "A colonial house built in 1872 at Forest Side, Curepipe, now a museum, with the Maison des Essences, a floral park and a restaurant serving Mauritian food.",
+      "speech": "Domaine des Aubineaux is a colonial house museum in Curepipe, with gardens and a restaurant.",
+      "notes": null,
+      "source": "https://groupe-saintaubin.com/saint-aubin-loisirs/domaine-des-aubineaux/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "so-flo-floreal",
+      "name": "So'flo",
+      "area": "curepipe",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.319,
+      "lon": 57.526,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food"
+      ],
+      "blurb": "A smaller, calm shopping centre in Floréal, near Curepipe, with fashion stores, a supermarket, cafés, restaurants and a spa over two floors.",
+      "speech": "So'flo in Floréal, near Curepipe, is a calm shopping centre with shops, cafes and restaurants.",
+      "notes": null,
+      "source": "https://www.ascenciamalls.com/so-flo",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "grand-bassin-ganga-talao",
+      "name": "Grand Bassin (Ganga Talao)",
+      "area": "curepipe",
+      "kind": "temple",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 60,
+      "lat": -20.418,
+      "lon": 57.492,
+      "coords_approx": false,
+      "tags": [
+        "culture",
+        "nature"
+      ],
+      "blurb": "A sacred crater lake in the southern uplands ringed by Hindu shrines, with a 33-metre Shiva statue at its gateway; it is the focus of the Maha Shivaratri pilgrimage.",
+      "speech": "Grand Bassin is a sacred Hindu lake in the hills, watched over by a giant statue of Shiva.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/ganga-talao/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "flic-en-flac-beach",
+      "name": "Flic en Flac Beach",
+      "area": "flic-en-flac",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.28,
+      "lon": 57.366,
+      "coords_approx": true,
+      "tags": [
+        "swim",
+        "snorkel"
+      ],
+      "blurb": "About eight kilometres of white sand on the west coast, shaded by casuarinas, with a warm lagoon for snorkelling and street-food stands nearby.",
+      "speech": "Flic en Flac beach is one of the longest on the island, with a calm lagoon and street food nearby.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/flic-en-flac-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "casela-nature-parks",
+      "name": "Casela Nature Parks",
+      "area": "flic-en-flac",
+      "kind": "wildlife",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 240,
+      "lat": -20.28,
+      "lon": 57.366,
+      "coords_approx": true,
+      "tags": [
+        "wildlife",
+        "family",
+        "kids"
+      ],
+      "blurb": "A large wildlife park at Cascavelle with an African safari area, big cats, giraffes, rhinos, aviaries, a petting farm and a children's play park.",
+      "speech": "Casela, near Flic en Flac, is a big wildlife park with giraffes, lions, rhinos and a petting farm.",
+      "notes": "Open daily 9 am to 5 pm except 25 December and 1 January, per the official site.",
+      "source": "https://caselaparks.com/frequently-asked-questions/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "cascavelle-mall",
+      "name": "Cascavelle Mall",
+      "area": "flic-en-flac",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.28,
+      "lon": 57.366,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food"
+      ],
+      "blurb": "The west coast's main shopping centre at Cascavelle, just inland from Flic en Flac, with groceries, fashion and home stores, restaurants and a food court.",
+      "speech": "Cascavelle Mall, just inland from Flic en Flac, has shops, a supermarket and a food court.",
+      "notes": null,
+      "source": "https://www.cascavelle.mu/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "black-river-gorges-national-park",
+      "name": "Black River Gorges National Park",
+      "area": "black-river",
+      "kind": "hike",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.417,
+      "lon": 57.417,
+      "coords_approx": true,
+      "tags": [
+        "hike",
+        "nature",
+        "view",
+        "wildlife"
+      ],
+      "blurb": "The island's largest national park, with more than 50 kilometres of trails through rainforest and valleys, endemic birds and Black River Peak, the highest summit.",
+      "speech": "Black River Gorges National Park has rainforest trails, waterfalls and rare birds in the hills above Black River.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/black-river-gorges-national-park/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "martello-tower-museum",
+      "name": "Martello Tower Museum",
+      "area": "black-river",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.355,
+      "lon": 57.362,
+      "coords_approx": false,
+      "tags": [
+        "history",
+        "museum"
+      ],
+      "blurb": "A British coastal defence tower from the 1830s on La Preneuse beach, restored as a museum and shown on guided tours of its rooms and rooftop cannon.",
+      "speech": "The Martello Tower in La Preneuse is a restored British fort from the eighteen thirties, seen on a guided tour.",
+      "notes": null,
+      "source": "https://www.actogether.mu/find-an-ngo/friends-of-the-environment/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "tamarin-bay",
+      "name": "Tamarin Bay",
+      "area": "black-river",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.317,
+      "lon": 57.383,
+      "coords_approx": true,
+      "tags": [
+        "boat",
+        "wildlife"
+      ],
+      "blurb": "A wide west-coast bay long known to surfers, where spinner and bottlenose dolphins are often seen early in the morning and dolphin-watching boats set out.",
+      "speech": "Tamarin Bay is a surf spot where dolphins are often seen in the early morning.",
+      "notes": null,
+      "source": "https://en.wikipedia.org/wiki/Tamarin,_Mauritius",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "seven-coloured-earth-geopark",
+      "name": "Seven Coloured Earth Geopark",
+      "area": "chamarel",
+      "kind": "nature",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 60,
+      "lat": -20.44,
+      "lon": 57.373,
+      "coords_approx": false,
+      "tags": [
+        "nature",
+        "view",
+        "family"
+      ],
+      "blurb": "Small dunes of naturally striped sand in shades from red and brown to violet and yellow, in a park that also has a tortoise enclosure and waterfall viewpoints.",
+      "speech": "The Seven Coloured Earth in Chamarel is a patch of striped dunes in seven shades of sand.",
+      "notes": "Open every day, including Sundays and public holidays, per the official site.",
+      "source": "https://www.chamarel7colouredearth.com/faq",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "chamarel-waterfall",
+      "name": "Chamarel Waterfall",
+      "area": "chamarel",
+      "kind": "waterfall",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 30,
+      "lat": -20.443,
+      "lon": 57.386,
+      "coords_approx": true,
+      "tags": [
+        "nature",
+        "view"
+      ],
+      "blurb": "One of the island's highest waterfalls, dropping about 100 metres over a basalt cliff into a pool, seen from two viewpoints inside the geopark.",
+      "speech": "Chamarel Waterfall plunges about one hundred metres down a basalt cliff, seen from viewpoints in the geopark.",
+      "notes": "Its two viewpoints are included in the geopark entrance ticket, per the official site.",
+      "source": "https://www.chamarel7colouredearth.com/faq",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "rhumerie-de-chamarel",
+      "name": "Rhumerie de Chamarel",
+      "area": "chamarel",
+      "kind": "rum",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.425,
+      "lon": 57.391,
+      "coords_approx": true,
+      "tags": [
+        "rum",
+        "food"
+      ],
+      "blurb": "A rum distillery in Chamarel offering guided visits that follow the spirit from cane harvest to bottle, with its own restaurant, L'Alchimiste.",
+      "speech": "Rhumerie de Chamarel is a rum distillery in Chamarel with guided tours and a restaurant.",
+      "notes": null,
+      "source": "https://www.rhumeriedechamarel.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "ebony-forest-chamarel",
+      "name": "Ebony Forest",
+      "area": "chamarel",
+      "kind": "nature",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.425,
+      "lon": 57.391,
+      "coords_approx": true,
+      "tags": [
+        "nature",
+        "view",
+        "wildlife"
+      ],
+      "blurb": "A non-profit reserve in Chamarel bringing back native forest, with walking trails, guided conservation tours, endemic birds and lookouts over the south-west coast.",
+      "speech": "Ebony Forest in Chamarel is a restored native forest with trails, rare birds and coastal viewpoints.",
+      "notes": null,
+      "source": "https://www.ebonyforest.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "alexandra-falls-viewpoint",
+      "name": "Alexandra Falls Viewpoint",
+      "area": "chamarel",
+      "kind": "viewpoint",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 30,
+      "lat": -20.434,
+      "lon": 57.457,
+      "coords_approx": false,
+      "tags": [
+        "view",
+        "nature"
+      ],
+      "blurb": "A signposted lookout in Black River Gorges National Park, on the plateau road east of Chamarel, with views of Alexandra Falls and the forested gorges.",
+      "speech": "The Alexandra Falls viewpoint in Black River Gorges National Park looks over a waterfall and forested gorges.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/black-river-gorges-national-park/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "le-morne-brabant",
+      "name": "Le Morne Brabant",
+      "area": "le-morne",
+      "kind": "history",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 240,
+      "lat": -20.452,
+      "lon": 57.328,
+      "coords_approx": false,
+      "tags": [
+        "unesco",
+        "history",
+        "hike",
+        "view"
+      ],
+      "blurb": "A 556-metre basalt mountain on the south-west tip, a World Heritage cultural landscape and a symbol of the escaped slaves who once sheltered on it.",
+      "speech": "Le Morne Brabant is a World Heritage mountain, remembered as a refuge for people who escaped slavery.",
+      "notes": null,
+      "source": "https://whc.unesco.org/en/list/1259/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "le-morne-beach",
+      "name": "Le Morne Beach",
+      "area": "le-morne",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.456,
+      "lon": 57.317,
+      "coords_approx": true,
+      "tags": [
+        "sunset",
+        "view"
+      ],
+      "blurb": "White sand and coconut palms at the foot of Le Morne Brabant, known for its sunsets and its kitesurfing, including the famous One Eye spot.",
+      "speech": "Le Morne beach sits beneath the mountain, with white sand, kitesurfers and great sunsets.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/le-morne-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "ile-aux-benitiers",
+      "name": "Île aux Bénitiers",
+      "area": "le-morne",
+      "kind": "boat",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 240,
+      "lat": -20.419,
+      "lon": 57.344,
+      "coords_approx": true,
+      "tags": [
+        "boat",
+        "snorkel"
+      ],
+      "blurb": "An uninhabited islet in the lagoon north of Le Morne, with white sand and a small coconut farm, plus snorkelling across to the clam-shaped Crystal Rock.",
+      "speech": "Île aux Bénitiers is a little island in the Le Morne lagoon, reached by boat, with snorkelling at Crystal Rock.",
+      "notes": "Local fishing boats leave from La Gaulette or Case Noyale, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/ile-aux-benitiers/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "gris-gris",
+      "name": "Gris Gris",
+      "area": "souillac",
+      "kind": "viewpoint",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 45,
+      "lat": -20.524,
+      "lon": 57.532,
+      "coords_approx": false,
+      "tags": [
+        "view",
+        "nature"
+      ],
+      "blurb": "A wild stretch of the south coast by Souillac where huge waves pound the shore below the clifftops, with the rocks of La Roche Qui Pleure close by.",
+      "speech": "Gris Gris, near Souillac, is a wild clifftop where huge waves crash against the south coast.",
+      "notes": "Not for swimming: strong currents and big waves, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/gris-gris-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "rochester-falls",
+      "name": "Rochester Falls",
+      "area": "souillac",
+      "kind": "waterfall",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 60,
+      "lat": -20.503,
+      "lon": 57.517,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "nature"
+      ],
+      "blurb": "A 10-metre waterfall about 2.5 kilometres from Souillac, spilling over a cliff of jagged, block-shaped rock into a pool where people swim and picnic.",
+      "speech": "Rochester Falls, near Souillac, tumbles over striking blocks of rock into a natural pool.",
+      "notes": "Avoid during or after heavy rain: rocks get slippery and water rises, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/chutes-de-rochester/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "bois-cheri-tea-estate",
+      "name": "Bois Chéri Tea Estate",
+      "area": "souillac",
+      "kind": "tea",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.426,
+      "lon": 57.526,
+      "coords_approx": false,
+      "tags": [
+        "tea",
+        "museum",
+        "food"
+      ],
+      "blurb": "The island's oldest tea plantation, in the southern hills, with guided tours of the tea factory and its museum, followed by a tasting of Bois Chéri teas.",
+      "speech": "Bois Chéri is a tea estate in the southern hills with a factory tour, a tea museum and a tasting.",
+      "notes": null,
+      "source": "https://groupe-saintaubin.com/saint-aubin-loisirs/domaine-de-bois-cheri/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "domaine-de-saint-aubin",
+      "name": "Domaine de Saint Aubin",
+      "area": "souillac",
+      "kind": "rum",
+      "setting": "mixed",
+      "rain_ok": true,
+      "duration_min": 120,
+      "lat": -20.517,
+      "lon": 57.517,
+      "coords_approx": true,
+      "tags": [
+        "rum",
+        "history",
+        "garden",
+        "food"
+      ],
+      "blurb": "A colonial estate near Rivière des Anguilles with a guided house visit, a rum house with tastings, a vanilla house, gardens and a Mauritian restaurant.",
+      "speech": "Domaine de Saint Aubin is a colonial estate near Souillac with rum tastings, vanilla and gardens.",
+      "notes": null,
+      "source": "https://groupe-saintaubin.com/saint-aubin-loisirs/domaine-de-saint-aubin/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "la-vanille-nature-park",
+      "name": "La Vanille Nature Park",
+      "area": "souillac",
+      "kind": "wildlife",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 150,
+      "lat": -20.517,
+      "lon": 57.517,
+      "coords_approx": true,
+      "tags": [
+        "wildlife",
+        "family",
+        "kids"
+      ],
+      "blurb": "A wildlife park in a valley at Rivière des Anguilles, home to more than 1,000 Aldabra giant tortoises and 2,000 Nile crocodiles, plus a fossil museum.",
+      "speech": "La Vanille Nature Park, near Souillac, has more than a thousand giant tortoises and lots of crocodiles.",
+      "notes": "Open every day 9 am to 5 pm, including public holidays, per the official site.",
+      "source": "https://www.lavanillenaturepark.com/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "blue-bay-marine-park",
+      "name": "Blue Bay Marine Park",
+      "area": "mahebourg",
+      "kind": "nature",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 150,
+      "lat": -20.445,
+      "lon": 57.71,
+      "coords_approx": false,
+      "tags": [
+        "snorkel",
+        "swim",
+        "boat",
+        "family"
+      ],
+      "blurb": "A protected lagoon south of Mahébourg with a brain-coral garden and reef fish; wade in from Blue Bay beach to snorkel, or view it from a glass-bottom boat.",
+      "speech": "Blue Bay Marine Park is a protected lagoon near Mahébourg, great for snorkelling or a glass bottom boat trip.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/blue-bay-marine-park/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "ile-aux-aigrettes",
+      "name": "Île aux Aigrettes",
+      "area": "mahebourg",
+      "kind": "wildlife",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.42,
+      "lon": 57.733,
+      "coords_approx": false,
+      "tags": [
+        "wildlife",
+        "nature",
+        "boat"
+      ],
+      "blurb": "A coral-ringed islet off Mahébourg, a nature reserve since 1965, where guided tours show restored coastal forest, pink pigeons and giant tortoises.",
+      "speech": "Île aux Aigrettes is a nature reserve island off Mahébourg, visited on guided tours to see rare birds.",
+      "notes": "Visits are guided EcoTours of about 1.5 to 2 hours, per the Mauritian Wildlife Foundation.",
+      "source": "https://www.mauritian-wildlife.org/Ileauxaigrettes",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "mahebourg-market",
+      "name": "Mahébourg Market",
+      "area": "mahebourg",
+      "kind": "market",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.408,
+      "lon": 57.7,
+      "coords_approx": true,
+      "tags": [
+        "market",
+        "food",
+        "shopping"
+      ],
+      "blurb": "Mahébourg's traditional market, with aisles of stalls under corrugated roofs; it is at its liveliest on Monday, the big market day.",
+      "speech": "Mahébourg market is a lively covered market, at its busiest on Mondays.",
+      "notes": "Arrive before 8 am on Monday market day, per a 2026 Westimmo guide.",
+      "source": "https://real-estate-mauritius.mu/en/?p=328746",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "biscuiterie-rault",
+      "name": "Biscuiterie Rault",
+      "area": "mahebourg",
+      "kind": "food",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.408,
+      "lon": 57.7,
+      "coords_approx": true,
+      "tags": [
+        "food",
+        "history"
+      ],
+      "blurb": "A family business just north of Mahébourg that has baked cassava biscuits over a wood fire for more than a century; visits end with a tasting and Mauritian tea.",
+      "speech": "Biscuiterie Rault in Mahébourg is a family biscuit factory where you can taste cassava biscuits with tea.",
+      "notes": "Booking is advised in high season, per a 2026 Westimmo guide.",
+      "source": "https://real-estate-mauritius.mu/en/?p=328746",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "bo-valon-mall",
+      "name": "Bo'Valon Mall",
+      "area": "mahebourg",
+      "kind": "shopping",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.408,
+      "lon": 57.7,
+      "coords_approx": true,
+      "tags": [
+        "shopping",
+        "food"
+      ],
+      "blurb": "A shopping mall on the edge of Mahébourg, a few minutes from the airport, with fashion and home stores, a supermarket, a food court and a children's play area.",
+      "speech": "Bo'Valon Mall, near Mahébourg, has shops, a supermarket and a food court under one roof.",
+      "notes": null,
+      "source": "https://www.ascenciamalls.com/bo-valon-mall",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "ile-aux-cerfs",
+      "name": "Île aux Cerfs",
+      "area": "belle-mare",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 300,
+      "lat": -20.272,
+      "lon": 57.804,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "boat"
+      ],
+      "blurb": "An uninhabited island off the east coast, reached by boat shuttle, with white-sand beaches, a lagoon for water sports, beach bars and a championship golf course.",
+      "speech": "Île aux Cerfs is an island off the east coast, reached by boat, with white beaches and a calm lagoon.",
+      "notes": "Boat shuttles leave from Pointe Maurice, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/ile-aux-cerfs/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "belle-mare-beach",
+      "name": "Belle Mare Beach",
+      "area": "belle-mare",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 180,
+      "lat": -20.19,
+      "lon": 57.77,
+      "coords_approx": true,
+      "tags": [
+        "swim",
+        "snorkel"
+      ],
+      "blurb": "One of the island's longest beaches, with around ten kilometres of white sand on the east coast, casuarina shade and clear water for swimming and snorkelling.",
+      "speech": "Belle Mare beach is a long stretch of white sand on the east coast, lovely for an early swim.",
+      "notes": null,
+      "source": "https://mauritiusnow.com/blog/things-to-do/belle-mare-beach/",
+      "verified_at": "2026-10-15"
+    },
+    {
+      "id": "central-flacq-market",
+      "name": "Central Flacq Market",
+      "area": "belle-mare",
+      "kind": "market",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 90,
+      "lat": -20.2,
+      "lon": 57.718,
+      "coords_approx": true,
+      "tags": [
+        "market",
+        "food",
+        "shopping"
+      ],
+      "blurb": "One of the biggest markets in Mauritius, an open-air sprawl of fresh produce, clothes, souvenirs and street food in Centre de Flacq, inland from Belle Mare.",
+      "speech": "Central Flacq market is a huge open-air market inland from Belle Mare, full of produce and street food.",
+      "notes": "Busiest on Wednesdays and Sundays, when all stalls open, per Mauritius Now.",
+      "source": "https://mauritiusnow.com/blog/things-to-do/central-flacq-market/",
+      "verified_at": "2026-10-15"
+    }
+  ]
+}

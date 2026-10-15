@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "region": "mauritius",
+  "researched_at": "2026-10-01",
+  "areas": [
+    {
+      "id": "grand-baie",
+      "name": "Grand Baie",
+      "coast": "north",
+      "lat": -20.013,
+      "lon": 57.58,
+      "aliases": [
+        "Grand Bay"
+      ]
+    },
+    {
+      "id": "port-louis",
+      "name": "Port Louis",
+      "coast": "west",
+      "lat": -20.161,
+      "lon": 57.499,
+      "aliases": [
+        "Port-Louis"
+      ]
+    },
+    {
+      "id": "mahebourg",
+      "name": "Mahébourg and Blue Bay",
+      "coast": "south-east",
+      "lat": -20.408,
+      "lon": 57.7,
+      "aliases": [
+        "Mahébourg",
+        "Blue Bay"
+      ]
+    },
+    {
+      "id": "flic-en-flac",
+      "name": "Flic en Flac",
+      "coast": "west",
+      "lat": -20.274,
+      "lon": 57.371,
+      "aliases": []
+    }
+  ],
+  "places": [
+    {
+      "id": "gb-beach",
+      "name": "Lagoon Test Beach",
+      "area": "grand-baie",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.01,
+      "lon": 57.578,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "family",
+        "free"
+      ],
+      "blurb": "Test fixture: Lagoon Test Beach.",
+      "speech": "Lagoon Test Beach is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "gb-glass-boat",
+      "name": "Glass Bottom Cabin Cruise",
+      "area": "grand-baie",
+      "kind": "boat",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.02,
+      "lon": 57.585,
+      "coords_approx": false,
+      "tags": [
+        "boat"
+      ],
+      "blurb": "Test fixture: Glass Bottom Cabin Cruise.",
+      "speech": "Glass Bottom Cabin Cruise is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "gb-snorkel",
+      "name": "Reef Snorkel Trip",
+      "area": "grand-baie",
+      "kind": "boat",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.0,
+      "lon": 57.592,
+      "coords_approx": false,
+      "tags": [
+        "snorkel",
+        "boat",
+        "swim"
+      ],
+      "blurb": "Test fixture: Reef Snorkel Trip.",
+      "speech": "Reef Snorkel Trip is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "gb-museum-a",
+      "name": "Sugar Story Museum",
+      "area": "grand-baie",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 90,
+      "lat": -20.05,
+      "lon": 57.58,
+      "coords_approx": false,
+      "tags": [
+        "museum",
+        "family"
+      ],
+      "blurb": "Test fixture: Sugar Story Museum.",
+      "speech": "Sugar Story Museum is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "gb-museum-b",
+      "name": "Shell Museum",
+      "area": "grand-baie",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 45,
+      "lat": -20.06,
+      "lon": 57.582,
+      "coords_approx": false,
+      "tags": [
+        "museum"
+      ],
+      "blurb": "Test fixture: Shell Museum.",
+      "speech": "Shell Museum is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "gb-lookout",
+      "name": "Hilltop Lookout",
+      "area": "grand-baie",
+      "kind": "viewpoint",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 60,
+      "lat": -20.04,
+      "lon": 57.6,
+      "coords_approx": false,
+      "tags": [
+        "view",
+        "hike"
+      ],
+      "blurb": "Test fixture: Hilltop Lookout.",
+      "speech": "Hilltop Lookout is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "pl-market",
+      "name": "Port Louis Central Market",
+      "area": "port-louis",
+      "kind": "market",
+      "setting": "covered",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.161,
+      "lon": 57.503,
+      "coords_approx": false,
+      "tags": [
+        "market",
+        "food"
+      ],
+      "blurb": "Test fixture: Port Louis Central Market.",
+      "speech": "Port Louis Central Market is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "pl-blue-penny",
+      "name": "Blue Penny Museum",
+      "area": "port-louis",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.161,
+      "lon": 57.498,
+      "coords_approx": false,
+      "tags": [
+        "museum",
+        "history"
+      ],
+      "blurb": "Test fixture: Blue Penny Museum.",
+      "speech": "Blue Penny Museum is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "pl-fort",
+      "name": "Old Fort Ruins",
+      "area": "port-louis",
+      "kind": "history",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 45,
+      "lat": -20.165,
+      "lon": 57.51,
+      "coords_approx": false,
+      "tags": [
+        "history",
+        "view"
+      ],
+      "blurb": "Test fixture: Old Fort Ruins.",
+      "speech": "Old Fort Ruins is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "mb-museum",
+      "name": "Naval History Museum",
+      "area": "mahebourg",
+      "kind": "museum",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.404,
+      "lon": 57.703,
+      "coords_approx": false,
+      "tags": [
+        "museum",
+        "history"
+      ],
+      "blurb": "Test fixture: Naval History Museum.",
+      "speech": "Naval History Museum is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "mb-lagoon",
+      "name": "Blue Bay Marine Park",
+      "area": "mahebourg",
+      "kind": "boat",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.443,
+      "lon": 57.713,
+      "coords_approx": false,
+      "tags": [
+        "snorkel",
+        "boat"
+      ],
+      "blurb": "Test fixture: Blue Bay Marine Park.",
+      "speech": "Blue Bay Marine Park is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "ff-beach",
+      "name": "Flic en Flac Beach",
+      "area": "flic-en-flac",
+      "kind": "beach",
+      "setting": "outdoor",
+      "rain_ok": false,
+      "duration_min": 120,
+      "lat": -20.278,
+      "lon": 57.369,
+      "coords_approx": false,
+      "tags": [
+        "swim",
+        "sunset"
+      ],
+      "blurb": "Test fixture: Flic en Flac Beach.",
+      "speech": "Flic en Flac Beach is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    },
+    {
+      "id": "ff-aquarium",
+      "name": "Coastal Aquarium",
+      "area": "flic-en-flac",
+      "kind": "wildlife",
+      "setting": "indoor",
+      "rain_ok": true,
+      "duration_min": 60,
+      "lat": -20.27,
+      "lon": 57.375,
+      "coords_approx": false,
+      "tags": [
+        "wildlife",
+        "kids",
+        "family"
+      ],
+      "blurb": "Test fixture: Coastal Aquarium.",
+      "speech": "Coastal Aquarium is a test place.",
+      "notes": null,
+      "source": "https://ambree.ai/",
+      "verified_at": "2026-10-01"
+    }
+  ]
+}

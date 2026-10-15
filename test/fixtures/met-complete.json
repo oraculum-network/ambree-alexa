@@ -1,0 +1,63 @@
+{
+  "type": "Feature",
+  "geometry": { "type": "Point", "coordinates": [57.58, -20.01, 12] },
+  "properties": {
+    "meta": {
+      "updated_at": "2026-10-15T08:41:12Z",
+      "units": { "air_temperature": "celsius", "precipitation_amount": "mm", "wind_speed": "m/s" }
+    },
+    "timeseries": [
+      {
+        "time": "2026-10-15T09:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 25.4, "wind_speed": 5.2, "relative_humidity": 74.1 } },
+          "next_1_hours": { "summary": { "symbol_code": "partlycloudy_day" }, "details": { "precipitation_amount": 0.0, "probability_of_precipitation": 8.0 } },
+          "next_6_hours": { "summary": { "symbol_code": "rainshowers_day" }, "details": { "precipitation_amount": 3.1, "air_temperature_max": 26.1, "air_temperature_min": 23.9 } }
+        }
+      },
+      {
+        "time": "2026-10-15T10:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 25.9, "wind_speed": 6.0 } },
+          "next_1_hours": { "summary": { "symbol_code": "rainshowers_day" }, "details": { "precipitation_amount": 0.6, "probability_of_precipitation": 55.0 } }
+        }
+      },
+      {
+        "time": "2026-10-15T11:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 26.1, "wind_speed": 11.3 } },
+          "next_1_hours": { "summary": { "symbol_code": "heavyrainshowers_day" }, "details": { "precipitation_amount": 2.4, "probability_of_precipitation": 90.0 } }
+        }
+      },
+      {
+        "time": "2026-10-15T12:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 24.8, "wind_speed": 7.1 } },
+          "next_1_hours": { "summary": { "symbol_code": "cloudy" }, "details": { "precipitation_amount": 0.1, "probability_of_precipitation": 62.0 } }
+        }
+      },
+      {
+        "time": "2026-10-15T13:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 24.1, "wind_speed": 5.0 } },
+          "next_1_hours": { "summary": { "symbol_code": "partlycloudy_day" }, "details": { "precipitation_amount": 0.0 } }
+        }
+      },
+      {
+        "time": "2026-10-15T14:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 999, "wind_speed": -3 } },
+          "next_1_hours": { "summary": { "symbol_code": "<script>" }, "details": { "precipitation_amount": "lots" } }
+        }
+      },
+      {
+        "time": "2026-10-15T18:00:00Z",
+        "data": {
+          "instant": { "details": { "air_temperature": 23.0, "wind_speed": 4.0 } },
+          "next_6_hours": { "summary": { "symbol_code": "clearsky_night" }, "details": { "precipitation_amount": 0.0 } }
+        }
+      },
+      { "time": "not a time", "data": {} }
+    ]
+  }
+}

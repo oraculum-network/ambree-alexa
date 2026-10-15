@@ -1,0 +1,34 @@
+{
+  "name": "ambree-alexa",
+  "version": "0.1.0",
+  "description": "Ambree for Alexa+: an MCP server with hyper-local Mauritius travel tools, plus a simulated Alexa+ voice page that is a real MCP client.",
+  "private": false,
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oraculum-network/ambree-alexa"
+  },
+  "homepage": "https://alexa.ambree.ai",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "dev": "node --watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

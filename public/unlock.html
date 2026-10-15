@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ambree for Alexa+ · Unlock the demo</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F7F2E8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1A1C" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/unlock.js" defer></script>
+</head>
+<body class="unlock-page">
+  <header class="masthead">
+    <a class="brand" href="/">
+      <picture>
+        <source srcset="/ambree-lockup-reversed.svg" media="(prefers-color-scheme: dark)">
+        <img src="/ambree-lockup.svg" alt="Ambree" width="166" height="40">
+      </picture>
+    </a>
+    <span class="tag">FOR ALEXA+ · SIMULATED</span>
+  </header>
+
+  <main class="unlock">
+    <p class="label">Private demo</p>
+    <h1 class="display">Enter the passcode <em>to begin.</em></h1>
+    <p class="explainer">The passcode is in the Devpost testing instructions. The MCP server itself is open at <code>/mcp</code>.</p>
+    <form id="unlock-form" class="ask unlock-form" autocomplete="off">
+      <label for="passcode" class="sr-only">Passcode</label>
+      <input id="passcode" name="passcode" type="password" maxlength="200" placeholder="Passcode" required autofocus>
+      <button id="unlock-button" class="send" type="submit">Open the demo</button>
+    </form>
+    <p id="unlock-error" class="unlock-error" role="alert" hidden></p>
+  </main>
+
+  <footer class="foot">
+    <p>Weather: Data from MET Norway (CC BY 4.0) · Cyclone alerts: GDACS</p>
+    <p><a href="https://github.com/oraculum-network/ambree-alexa">Source</a></p>
+  </footer>
+</body>
+</html>

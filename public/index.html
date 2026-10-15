@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ambree for Alexa+ · Mauritius, by voice</title>
+  <meta name="description" content="A simulated Alexa+ experience. This page is an MCP client of Ambree's Mauritius tools.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F7F2E8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1A1C" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#ask-input">Skip to the question box</a>
+
+  <header class="masthead">
+    <a class="brand" href="/">
+      <picture>
+        <source srcset="/ambree-lockup-reversed.svg" media="(prefers-color-scheme: dark)">
+        <img src="/ambree-lockup.svg" alt="Ambree" width="166" height="40">
+      </picture>
+    </a>
+    <span class="tag">FOR ALEXA+ · SIMULATED</span>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-labelledby="title">
+      <p class="label">Mauritius, by voice</p>
+      <h1 id="title" class="display">Your island day, <em><span class="nowrap">re-planned</span> out loud.</em></h1>
+      <p class="explainer">A simulated Alexa+ experience. This page is an MCP client of Ambree's Mauritius tools.</p>
+
+      <div class="trip" aria-label="Your trip">
+        <span class="label">Your trip</span>
+        <p class="trip-line">Staying in Grand Baie · 3 days left</p>
+      </div>
+
+      <div class="voice">
+        <button id="mic" class="mic" type="button" data-state="idle" aria-label="Talk to Ambree" aria-describedby="mic-status">
+          <span class="ring" aria-hidden="true"></span>
+          <svg class="mic-icon" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" focusable="false">
+            <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/>
+            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        </button>
+        <p id="mic-status" class="mic-status">Tap to talk, or hold Space.</p>
+        <p id="interim" class="interim" aria-hidden="true"></p>
+        <p id="no-voice" class="no-voice" hidden>Voice input works in Chrome. Type instead.</p>
+        <button id="voice-toggle" class="voice-toggle" type="button" aria-pressed="true">Voice on</button>
+      </div>
+
+      <form id="ask" class="ask" autocomplete="off">
+        <label for="ask-input" class="sr-only">Ask Ambree</label>
+        <input id="ask-input" name="text" type="text" maxlength="300" placeholder="Ask about your day" required>
+        <button id="send" class="send" type="submit">Ask</button>
+      </form>
+
+      <div class="chips" role="group" aria-labelledby="chips-label">
+        <span id="chips-label" class="label">Try asking</span>
+        <button type="button" class="chip" data-text="It's raining in Grand Baie. Re-plan my afternoon.">It's raining in Grand Baie. Re-plan my afternoon.</button>
+        <button type="button" class="chip" data-text="What's the weather in Flic en Flac?">What's the weather in Flic en Flac?</button>
+        <button type="button" class="chip" data-text="Find a covered market near Port Louis.">Find a covered market near Port Louis.</button>
+        <button type="button" class="chip" data-text="Tell me about the Blue Penny Museum.">Tell me about the Blue Penny Museum.</button>
+      </div>
+
+      <section class="conversation" aria-labelledby="conv-title">
+        <h2 id="conv-title" class="label">Conversation</h2>
+        <ol id="log" class="log"></ol>
+        <p id="empty" class="empty">Nothing yet. Your conversation stays in this page and is gone when you reload.</p>
+      </section>
+      <div id="reply-live" class="sr-only" aria-live="polite"></div>
+    </section>
+
+    <aside class="side" aria-label="Under the hood">
+      <details id="hood" class="hood" open>
+        <summary>
+          <span class="label">Under the hood</span>
+          <span class="hood-sub">Live MCP calls</span>
+        </summary>
+        <p class="hood-intro">Each turn goes to <code>/api/agent</code>, which lists and calls the tools of Ambree's MCP server at <code>/mcp</code> over Streamable HTTP (spec 2025-11-25).</p>
+        <ol id="turns" class="turns"></ol>
+        <p id="hood-empty" class="hood-empty">Ask something to see the tool calls.</p>
+      </details>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <p>Voice input uses your browser's speech recognition (in Chrome, audio is processed by Google). We don't store what you say.</p>
+    <p>Weather: Data from MET Norway (CC BY 4.0) · Cyclone alerts: GDACS</p>
+    <p><a href="https://github.com/oraculum-network/ambree-alexa">Source</a></p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,17 @@
+node_modules
+test
+e2e
+test-results
+playwright-report
+coverage
+.env*
+*.md
+!README.md
+.git
+.gitignore
+.dockerignore
+Dockerfile
+vitest.config.ts
+playwright.config.ts
+tsconfig.json
+!skills/**/SKILL.md
