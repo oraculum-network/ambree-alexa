@@ -4,7 +4,7 @@ import { z } from "zod";
 import { KINDS, type Kind, type Place, SETTINGS } from "../data/places.ts";
 import { normalize } from "../data/match.ts";
 import { haversineKm, round1 } from "../geo.ts";
-import { type ToolDeps, type ToolOutcome, fail, resolveArea } from "./context.ts";
+import { type ToolDeps, type ToolOutcome, fail, resolveArea, viaPrefix } from "./context.ts";
 import { fitSpeech, joinNames } from "./speech.ts";
 
 export const NEARBY_KM = 25;
@@ -30,8 +30,14 @@ export const placeSummary = z.object({
   distance_km: z.number().nullable(),
 });
 
+export const areaOut = z.object({
+  id: z.string(),
+  name: z.string(),
+  via_place: z.string().optional().describe("Set when the area text named a place: the place whose area this is."),
+});
+
 export const findPlacesOutput = z.object({
-  area: z.object({ id: z.string(), name: z.string() }).nullable(),
+  area: areaOut.nullable(),
   count: z.int(),
   places: z.array(placeSummary),
   speech: z.string(),
@@ -59,10 +65,12 @@ export function findPlaces(input: FindPlacesInput, deps: ToolDeps): ToolOutcome<
   const { places } = deps;
   const limit = input.limit ?? 5;
   let area = null;
+  let via: Place | undefined;
   if (input.area) {
     const r = resolveArea(places, input.area);
     if ("error" in r) return fail(r.error);
     area = r.area;
+    via = r.via;
   }
 
   const filtered = places.places.filter(
@@ -100,16 +108,16 @@ export function findPlaces(input: FindPlacesInput, deps: ToolDeps): ToolOutcome<
   let speech: string;
   if (!out.length) {
     const what = `${input.rain_ok ? "covered " : ""}${input.kind ? KIND_PLURAL[input.kind] : "places"}`;
-    speech = fitSpeech(`I couldn't find any ${what}${where} in my verified list. Try another area or fewer filters.`);
+    speech = fitSpeech(viaPrefix(via, `I couldn't find any ${what}${where} in my verified list. Try another area or fewer filters.`));
   } else {
     const names = out.slice(0, 3).map((p) => p.name);
-    const lead = area ? `Near ${area.name}, try ${joinNames(names)}.` : `Try ${joinNames(names)}.`;
+    const lead = viaPrefix(via, area ? `Near ${area.name}, try ${joinNames(names)}.` : `Try ${joinNames(names)}.`);
     const first = chosen[0]!.place.speech;
-    speech = fitSpeech(`${lead} ${first}`, lead, `Try ${names[0]}.`);
+    speech = fitSpeech(`${lead} ${first}`, lead, viaPrefix(via, `Try ${names[0]}.`));
   }
 
   return {
     ok: true,
-    value: { area: area ? { id: area.id, name: area.name } : null, count: out.length, places: out, speech },
+    value: { area: area ? { id: area.id, name: area.name, ...(via ? { via_place: via.name } : {}) } : null, count: out.length, places: out, speech },
   };
 }

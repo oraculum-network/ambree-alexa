@@ -16,8 +16,11 @@ export const OFFLINE_HINT =
 
 const has = (t: string, re: RegExp) => re.test(t);
 
-const RAIN = /\b(rain|raining|rainy|wet|shower|showers|storm|stormy|pouring|drizzle)\b/;
-const REPLAN = /\b(re plan|replan|plan my|what should i do|what can i do|what to do|instead|change of plan|change my plan)\b/;
+const RAIN = /\b(rain|rains|raining|rained|rainy|wet|shower|showers|storm|storms|stormy|pouring|drizzle)\b/;
+const REPLAN = /\b(re plan|replan|plan my|what should i do|what to do|instead|change of plan|change my plan)\b/;
+/** "What is there to do", "what can I do", "things to do": find places, or re-plan if the weather is mentioned. */
+const TO_DO = /\b(what is there to do|what s there to do|whats there to do|what can i do|what can we do|things to do)\b/;
+const WEATHER_WORDS = /\b(rain|rains|raining|rainy|wet|shower|showers|storm|storms|stormy|pouring|drizzle|wind|windy|hot|heat|cyclone)\b/;
 const PLAN_WORD = /\b(plan|plans|afternoon|morning|evening|day|today|tonight|beach|trip|outing)\b/;
 const WEATHER = /\b(weather|forecast|temperature|hot|warm|cold|wind|windy|sunny|cyclone|humid)\b/;
 const DETAILS = /\b(tell me about|what is|what s|whats|more about|info on|information about|details)\b/;
@@ -59,13 +62,13 @@ export function routeOffline(text: string, places: PlacesIndex): OfflineRoute | 
   const rain = has(t, RAIN);
 
   // 1. Re-plan: explicit, or rain plus a plan word ("it's raining, what about my afternoon").
-  if (has(t, REPLAN) || (rain && has(t, PLAN_WORD) && !t.endsWith(" rain") && !/\bwill it rain\b/.test(t))) {
+  if (has(t, REPLAN) || (has(t, TO_DO) && has(t, WEATHER_WORDS)) || (rain && has(t, PLAN_WORD) && !t.endsWith(" rain") && !/\bwill it rain\b/.test(t))) {
     const args: Record<string, unknown> = { area: areaId };
     const window = windowOf(t);
     if (window) args.window = window;
     if (rain) args.reported_weather = "rain";
-    else if (/\b(windy|too much wind|strong wind)\b/.test(t)) args.reported_weather = "wind";
-    else if (/\b(too hot|so hot|heat|boiling)\b/.test(t)) args.reported_weather = "heat";
+    else if (/\b(wind|windy|too much wind|strong wind)\b/.test(t)) args.reported_weather = "wind";
+    else if (/\b(hot|too hot|so hot|heat|boiling)\b/.test(t)) args.reported_weather = "heat";
     if (place) args.plan = place.name;
     else if (/\bbeach\b/.test(t)) args.plan = "beach";
     else if (/\b(boat|catamaran)\b/.test(t)) args.plan = "boat trip";
@@ -85,7 +88,7 @@ export function routeOffline(text: string, places: PlacesIndex): OfflineRoute | 
   // 4. Find places.
   const kind = KIND_WORDS.find(([re]) => re.test(t))?.[1];
   const covered = has(t, COVERED) || rain;
-  if (has(t, FIND) || kind || covered) {
+  if (has(t, FIND) || has(t, TO_DO) || kind || covered) {
     const args: Record<string, unknown> = { area: areaId };
     if (kind) args.kind = kind;
     if (covered) args.rain_ok = true;

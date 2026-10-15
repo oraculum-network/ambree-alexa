@@ -9,12 +9,12 @@
 import { z } from "zod";
 import { KINDS, type Place, SETTINGS } from "../data/places.ts";
 import { normalize } from "../data/match.ts";
-import { isDangerous } from "../feeds/cyclones.ts";
+import { isDangerous, isWorthWatching } from "../feeds/cyclones.ts";
 import type { HourStep } from "../feeds/weather.ts";
 import { haversineKm, travelMinutes } from "../geo.ts";
 import { addDays, hourOfMu, muInstant, muParts } from "../time.ts";
-import { ATTRIBUTION, type ToolDeps, type ToolOutcome, fail, forecastPoint, resolveArea } from "./context.ts";
-import { isHeavy, isRainy, isWindy, rainySpells, spokenCycloneName, summarise } from "./forecast.ts";
+import { ATTRIBUTION, type ToolDeps, type ToolOutcome, fail, forecastPoint, resolveArea, viaPrefix } from "./context.ts";
+import { alertArticle, isHeavy, isRainy, isWindy, rainySpells, spokenCycloneName, summarise, watchSentence } from "./forecast.ts";
 import { capitalise, clockWord, fitSpeech, spokenTime } from "./speech.ts";
 
 export const SWAP_RADIUS_KM = 35;
@@ -62,6 +62,7 @@ export type ReplanDayOutput = z.infer<typeof replanDayOutput>;
 type Option = z.infer<typeof replanOption>;
 
 export interface ResolvedWindow {
+  /** The window actually planned (a rolled-over window becomes rest_of_day). */
   name: WindowName;
   label: string;
   date: string;
@@ -70,21 +71,45 @@ export interface ResolvedWindow {
   fromMs: number;
   toMs: number;
   tomorrow: boolean;
+  /** Set when the asked-for window was over and we planned the rest of today instead. */
+  rolledFrom?: WindowName;
+  /** A weather report is about now: it applies only to a window that is today. */
+  reportApplies: boolean;
 }
 
-/** The window in Mauritius time; if it is already over today, tomorrow's. */
-export function resolveWindow(name: WindowName, now: number): ResolvedWindow {
+/**
+ * The window in Mauritius time. A window that includes now, or starts later today, is
+ * today's. One that is already over moves to the rest of today (now until 21:00) when the
+ * traveller has reported the weather and it's before 21:00, since the report is about now;
+ * otherwise it moves to tomorrow, where only the forecast counts.
+ */
+export function resolveWindow(name: WindowName, now: number, hasReport = false): ResolvedWindow {
   const w = WINDOWS[name];
   const { date, hour } = muParts(now);
-  if (hour >= w.to) {
-    const d = addDays(date, 1);
-    const label = name === "rest_of_day" ? "tomorrow" : `tomorrow ${w.label}`;
-    return { name, label, date: d, fromHour: w.from, toHour: w.to, fromMs: muInstant(d, w.from), toMs: muInstant(d, w.to), tomorrow: true };
+  const today = (n: WindowName, fromHour: number, toHour: number, label: string, rolledFrom?: WindowName): ResolvedWindow => ({
+    name: n,
+    label,
+    date,
+    fromHour,
+    toHour,
+    fromMs: muInstant(date, fromHour),
+    toMs: muInstant(date, toHour),
+    tomorrow: false,
+    reportApplies: true,
+    ...(rolledFrom ? { rolledFrom } : {}),
+  });
+  if (hour < w.to) return today(name, Math.max(w.from, hour), w.to, name === "rest_of_day" ? "the rest of today" : `this ${w.label}`);
+  const dayEnd = WINDOWS.rest_of_day.to;
+  if (hasReport && hour < dayEnd) {
+    return today("rest_of_day", hour, dayEnd, hour >= WINDOWS.evening.from ? "this evening" : "the rest of today", name);
   }
-  const fromHour = Math.max(w.from, hour);
-  const label = name === "rest_of_day" ? "the rest of today" : `this ${w.label}`;
-  return { name, label, date, fromHour, toHour: w.to, fromMs: muInstant(date, fromHour), toMs: muInstant(date, w.to), tomorrow: false };
+  const d = addDays(date, 1);
+  const label = name === "rest_of_day" ? "tomorrow" : `tomorrow ${w.label}`;
+  return { name, label, date: d, fromHour: w.from, toHour: w.to, fromMs: muInstant(d, w.from), toMs: muInstant(d, w.to), tomorrow: true, reportApplies: false };
 }
+
+/** How a report about right now reads aloud: "It's raining now". */
+const REPORT_NOW: Record<NonNullable<ReplanDayInput["reported_weather"]>, string> = { rain: "raining", wind: "windy", heat: "hot", dry: "dry" };
 
 const WATER_TAGS = new Set(["boat", "snorkel", "swim"]);
 const WATER_KINDS = new Set(["boat"]);
@@ -163,15 +188,17 @@ function windowSummary(steps: HourStep[]): string {
 export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<ToolOutcome<ReplanDayOutput>> {
   const r = resolveArea(deps.places, input.area);
   if ("error" in r) return fail(r.error);
-  const { area } = r;
+  const { area, via } = r;
   const now = deps.now();
-  const win = resolveWindow(input.window ?? "rest_of_day", now);
+  const win = resolveWindow(input.window ?? "rest_of_day", now, input.reported_weather !== undefined);
   const point = forecastPoint(area);
   const [wx, tc] = await Promise.all([deps.weather.get(point.lat, point.lon, now), deps.cyclones.get(now)]);
 
   const steps = wx.status === "unavailable" ? [] : wx.steps.filter((s) => s.time >= win.fromMs && s.time < win.toMs);
   const haveForecast = steps.length > 0;
-  const reported = input.reported_weather;
+  // The traveller's report is about now: trust it only for a window that is today.
+  const reported = win.reportApplies ? input.reported_weather : undefined;
+  const reportSetAside = input.reported_weather !== undefined && !win.reportApplies;
   const basis = reported && haveForecast ? "both" : reported ? "reported" : haveForecast ? "forecast" : "unavailable";
   const windowOut = {
     label: win.label,
@@ -180,18 +207,40 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
     to: `${String(win.toHour).padStart(2, "0")}:00`,
   };
   const weather = { basis, summary: haveForecast ? windowSummary(steps) : "Forecast unavailable for this window." } as const;
+  const danger = tc.systems.find(isDangerous);
+  const watch = danger ? undefined : tc.systems.find(isWorthWatching);
+  const notes =
+    (reportSetAside ? " Your report is about now, so it doesn't decide tomorrow." : "") +
+    (via ? ` Area taken from ${via.name}.` : "") +
+    (watch ? ` GDACS ${watch.alertLevel} alert for ${watch.name}, ${watch.distanceKm} km from Mauritius: follow the official bulletins.` : "");
   const result = (decision: ReplanDayOutput["decision"], reason: string, options: Option[], speech: string): ToolOutcome<ReplanDayOutput> => ({
     ok: true,
-    value: { decision, reason, window: windowOut, weather, options, speech, attribution: { ...ATTRIBUTION } },
+    value: { decision, reason: reason + notes, window: windowOut, weather, options, speech, attribution: { ...ATTRIBUTION } },
   });
-  // A window already over today moves to tomorrow, and the answer says so up front.
-  const lead = win.tomorrow ? `For ${win.label}, ` : "";
-  const forTomorrow = (s: string) => (lead ? lead + (s.startsWith("I ") ? s : s.charAt(0).toLowerCase() + s.slice(1)) : s);
+  // A moved window is said up front: "The afternoon's over, so for this evening: …",
+  // "It's raining now, but for tomorrow afternoon, …" or "For tomorrow afternoon, …".
+  const lower = (s: string) => (s.startsWith("I ") ? s : s.charAt(0).toLowerCase() + s.slice(1));
+  const moved = (s: string): string => {
+    if (win.rolledFrom) return `The ${WINDOWS[win.rolledFrom].label}'s over, so for ${win.label}: ${lower(s)}`;
+    if (win.tomorrow && input.reported_weather) return `It's ${REPORT_NOW[input.reported_weather]} now, but for ${win.label}, ${lower(s)}`;
+    if (win.tomorrow) return `For ${win.label}, ${lower(s)}`;
+    return s;
+  };
+  const forTomorrow = (s: string): string => viaPrefix(via, moved(s));
+  /**
+   * Two sentences: the decision, then `second`. With an orange or red system further out,
+   * the second sentence is the bulletins advice instead (the first option folds into the first).
+   */
+  const say = (first: string, second: string, opts: Option[] = [], leadWritten = false): string => {
+    const s1 = leadWritten ? viaPrefix(via, first) : forTomorrow(first);
+    if (!watch) return fitSpeech(`${s1} ${second}`, s1);
+    const withOption = opts[0] ? `${s1.replace(/\.$/, "")}, like ${opts[0].name}, about ${opts[0].travel_min} minutes away.` : s1;
+    return fitSpeech(`${withOption} ${watchSentence(watch)}`, `${s1} ${watchSentence(watch)}`, `${s1} ${watchSentence(watch, true)}`, watchSentence(watch));
+  };
 
   // 1. Cyclone: stay safe, and say nothing beyond the official-bulletin advice.
-  const danger = tc.systems.find(isDangerous);
   if (danger) {
-    const level = danger.alertLevel === "Red" ? "a red" : "an orange";
+    const level = alertArticle(danger.alertLevel);
     const name = capitalise(spokenCycloneName(danger.name));
     return result(
       "stay_safe",
@@ -235,11 +284,18 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
     });
   const optionSentence = (opts: Option[]) => describeOptions(opts.map((o) => ({ name: o.name, minutes: o.travel_min })));
   const speak = (first: string, opts: Option[]) =>
-    fitSpeech(`${forTomorrow(first)} ${optionSentence(opts)}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 2))}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 1))}`);
+    watch
+      ? say(first, "", opts)
+      : fitSpeech(`${forTomorrow(first)} ${optionSentence(opts)}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 2))}`, `${forTomorrow(first)} ${optionSentence(opts.slice(0, 1))}`);
 
   // 3. Wet: swap for covered places nearby, of different kinds.
   if (wet) {
-    const picks = pickVaried(familyFirst(nearby.filter((c) => c.place.rain_ok)), MAX_SWAP_OPTIONS);
+    const covered = familyFirst(nearby.filter((c) => c.place.rain_ok));
+    // Evenings: the dataset has no opening hours, and museums and estates mostly close by late
+    // afternoon, so from 17:00 the shopping centres (open into the evening) come first.
+    const evening = win.fromHour >= WINDOWS.evening.from;
+    const malls = covered.filter((c) => c.place.kind === "shopping");
+    const picks = evening && malls.length >= 2 ? malls.slice(0, MAX_SWAP_OPTIONS) : pickVaried(covered, MAX_SWAP_OPTIONS);
     const options = toOptions(picks, (p, m) => `${settingWord(p)}, about ${m} minutes away.`);
     const spells = rainySpells(steps);
     const at = (h: number) => (win.name === "rest_of_day" ? spokenTime(h) : clockWord(h));
@@ -263,10 +319,11 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
         : reported === "rain"
           ? "You reported rain."
           : `The forecast has ${rainyHours} rainy ${rainyHours === 1 ? "hour" : "hours"} in the window.`;
+    const reasonText = evening && malls.length >= 2 ? `${reason} Evening, so shopping centres first: most museums close by late afternoon.` : reason;
     const speech = options.length
       ? speak(first, options)
-      : fitSpeech(`${forTomorrow(first)} I don't have a covered place within ${SWAP_RADIUS_KM} kilometres in my verified list, so a quiet break indoors may be best.`, forTomorrow(first));
-    return result("swap", reason, options, speech);
+      : say(first, `I don't have a covered place within ${SWAP_RADIUS_KM} kilometres in my verified list, so a quiet break indoors may be best.`);
+    return result("swap", reasonText, options, speech);
   }
 
   // 4. Heat: shade or indoors for the middle of the day.
@@ -274,7 +331,7 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
     const picks = pickVaried(familyFirst(nearby.filter((c) => c.place.rain_ok)), MAX_SWAP_OPTIONS);
     const options = toOptions(picks, (p, m) => `${settingWord(p)} and out of the midday sun, about ${m} minutes away.`);
     const first = `It's hot in ${area.name}, so spend the middle of the day somewhere shaded and keep the beach for later.`;
-    const speech = options.length ? speak(first, options) : fitSpeech(forTomorrow(first));
+    const speech = options.length ? speak(first, options) : say(first, "");
     return result("swap", "You reported heat.", options, speech);
   }
 
@@ -283,11 +340,21 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
   if (windy && (activity === "boat" || activity === "beach")) {
     const options = landIdeas(MAX_SWAP_OPTIONS);
     const first = `It's too windy over ${area.name} for the water, so ${activity === "boat" ? "skip the boat trip" : "skip swimming"} and stay on land.`;
-    const speech = options.length ? speak(first, options) : fitSpeech(forTomorrow(first));
+    const speech = options.length ? speak(first, options) : say(first, "");
     return result("swap", reported === "wind" ? "You reported strong wind." : "Wind of 10 m/s or more is forecast.", options, speech);
   }
 
-  // 6. Dry (or unknown): keep the plan, with up to 2 outdoor ideas nearby.
+  // 6. A report about now, and no forecast for tomorrow's window: nothing to go on yet.
+  if (reportSetAside && !haveForecast) {
+    return result(
+      "keep",
+      "No forecast for this window yet.",
+      [],
+      say(`It's ${REPORT_NOW[input.reported_weather!]} now, and I can't reach the forecast for ${win.label} yet, so keep that plan for now.`, "Ask me again closer to the time.", [], true),
+    );
+  }
+
+  // 7. Dry (or unknown): keep the plan, with up to 2 outdoor ideas nearby.
   const ideas = toOptions(
     pickVaried(familyFirst(nearby.filter((c) => c.place.setting === "outdoor" || c.place.setting === "mixed")), MAX_KEEP_IDEAS),
     (p, m) => `${settingWord(p)}, about ${m} minutes away.`,
@@ -305,6 +372,5 @@ export async function replanDay(input: ReplanDayInput, deps: ToolDeps): Promise<
     reason = "No forecast available and no weather reported.";
   }
   const extra = ideas.length === 0 ? "" : ideas.length === 1 ? `If you want more, ${ideas[0]!.name} is about ${ideas[0]!.travel_min} minutes away.` : `Nearby, you could also try ${ideas[0]!.name} or ${ideas[1]!.name}.`;
-  const speech = fitSpeech(`${forTomorrow(first)} ${extra}`, forTomorrow(first));
-  return result("keep", reason, ideas, speech);
+  return result("keep", reason, ideas, say(first, extra));
 }

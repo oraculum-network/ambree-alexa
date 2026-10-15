@@ -39,19 +39,21 @@ An Agent Skill that tells an agent when to call each tool is in
 
 ## The 4 tools
 
-All are read-only (`readOnlyHint: true`, `idempotentHint: true`), with titles, icons, input and output schemas.
-Every result has `structuredContent` plus the same JSON as text, and a **`speech`** field: at most 2 sentences
-and 280 characters, written to be read aloud.
+All are read-only (`readOnlyHint: true`, `idempotentHint: true`), with titles, icons, and input and output schemas
+listed as JSON Schema 2020-12. Every successful result has `structuredContent` plus the same JSON as text, including
+a **`speech`** field: at most 2 sentences and 280 characters, written to be read aloud. A result with `isError: true`
+has a short, readable text message only.
 
 | Tool | What it does | Live feeds |
 |---|---|---|
-| `replan_day` | Keeps the plan, swaps it for up to 3 nearby covered places of different kinds (with approximate travel times), or says to stay safe when an orange or red cyclone alert is near Mauritius. Trusts the traveller's own report of rain. | MET Norway, GDACS |
+| `replan_day` | Keeps the plan, swaps it for up to 3 nearby covered places of different kinds (with approximate travel times), or says to stay safe when an orange or red cyclone alert affects Mauritius or is within 800 km. Trusts the traveller's own report about now: if the asked-for window is already over, it re-plans the rest of today (or, from 21:00, tomorrow from the forecast alone) and says so. | MET Norway, GDACS |
 | `weather_now` | Hourly forecast for an area (3 to 12 hours): rain timing, temperatures, wind, and cyclone alerts near the island. Says honestly when the feed is unavailable. | MET Norway, GDACS |
 | `find_places` | Places from the verified dataset by area (fuzzy and accent-insensitive), kind, `rain_ok` and free text. In-area first, then within 25 km, nearest first. | none |
 | `place_details` | The full verified record for one place: what it is, how long to allow, rain suitability, source and check date. | none |
 
 Bad arguments come back as a tool result with `isError: true` and a readable message (SEP-1303), so a model can
-correct itself; an unknown tool name is a JSON-RPC error (-32602).
+correct itself; an unknown or non-string tool name is a JSON-RPC error (-32602). JSON-RPC batches are refused
+(400, -32600), as MCP removed batching in 2025-06-18.
 
 ## Architecture
 
@@ -68,15 +70,17 @@ flowchart LR
   T --> D["Verified places<br/>data/places.json"]
 ```
 
-- **No framework:** `node:http` plus `@modelcontextprotocol/sdk` and `zod` are the only runtime dependencies.
+- **No framework:** `node:http` plus `@modelcontextprotocol/sdk` and `zod` are the only direct runtime dependencies
+  (the SDK brings its own transitive ones).
 - **Stateless MCP:** a fresh `McpServer` and `StreamableHTTPServerTransport` per request, JSON responses.
 - **The page is a real MCP client:** every tool call in a turn goes over HTTP to `/mcp`, and the
   *Under the hood* panel shows each call (tool, arguments, time, result).
 - **Feeds are polite and robust:** MET Norway is cached until `Expires`, revalidated with `If-Modified-Since`,
   asked for 2-decimal coordinates with a descriptive User-Agent; both feeds have a 4 s timeout, a 1 MB cap,
   stale-if-error and a 5-minute back-off.
-- **Guards:** Origin and Host checks (DNS rebinding), body limits, per-IP token-bucket rate limits, a CSP with
-  no inline code, security headers, a daily LLM budget, and an optional passcode gate for the demo page.
+- **Guards:** Origin and Host checks (DNS rebinding), body limits, per-client token-bucket rate limits (IPv6 clients
+  by /64), a CSP with no inline code, security headers, a daily LLM budget reserved before each call, at most 3 LLM
+  turns in flight, and an optional passcode gate for the demo page.
 
 ## Built during the hackathon
 
@@ -92,18 +96,18 @@ All variables are optional. Copy `.env.example` if you like; empty values count 
 |---|---|---|
 | `PORT` | `8080` | Port to listen on. |
 | `HOST` | all interfaces | Address to bind. |
-| `PUBLIC_ORIGIN` | `http://localhost:<PORT>` | The public origin (e.g. `https://alexa.ambree.ai`). Allowed as Origin and Host; https turns on HSTS and `Secure` cookies. |
+| `PUBLIC_ORIGIN` | `http://localhost:<PORT>` | The public origin (e.g. `https://alexa.ambree.ai`). Allowed as Origin and Host; https turns on HSTS and a `Secure`, `__Host-` session cookie. |
 | `ALLOWED_ORIGINS` | none | Extra allowed origins, comma-separated (their hostnames are also accepted as Host). |
-| `TRUST_PROXY_HOPS` | `0` | Number of proxies in front. With N ≥ 1 the client IP is the N-th `X-Forwarded-For` entry from the right. |
+| `TRUST_PROXY_HOPS` | `0` | Number of proxies in front. With N ≥ 1 the client IP is the N-th `X-Forwarded-For` entry from the right (a `:port` or `[ ]` around it is ignored). |
 | `RATE_LIMIT_SCALE` | `1` | Multiplies every rate limit (`/mcp` 120/min burst 30, `/api/agent` 12/min burst 4, `/api/unlock` 5/min burst 5). For load tests and the e2e suite. |
-| `DEMO_PASSCODE` | none | Puts the voice page behind a passcode. `/mcp` and `/healthz` stay open. |
+| `DEMO_PASSCODE` | none | Puts the voice page behind a passcode. `/mcp` and `/healthz` stay open. A value made only of spaces fails at boot. Changing it ends every session. |
 | `SESSION_SECRET` | none | Signs the session cookie. Required (32+ characters) when `DEMO_PASSCODE` is set. |
 | `OPENROUTER_API_KEY` | none | Turns on LLM mode. |
 | `AGENT_MODEL` | `amazon/nova-2-lite-v1` | OpenRouter model. |
 | `AGENT_FALLBACK_MODELS` | `deepseek/deepseek-v4-flash` | Comma-separated fallbacks (`none` for none). |
 | `AGENT_PRICE_IN_PER_M` / `AGENT_PRICE_OUT_PER_M` | `0.30` / `2.50` | USD per million tokens, used only when OpenRouter doesn't report `usage.cost`. |
-| `AGENT_DAILY_USD` / `AGENT_DAILY_TURNS` | `0.50` / `300` | Daily (UTC) LLM caps; past them the agent answers in offline mode. |
-| `MCP_URL` | `http://127.0.0.1:<PORT>/mcp` | The MCP endpoint the agent connects to (set it if `HOST` binds a non-loopback address only). |
+| `AGENT_DAILY_USD` / `AGENT_DAILY_TURNS` | `0.50` / `300` | Daily (UTC) LLM caps; past them the agent answers in offline mode. Each LLM call reserves its worst-case cost first. |
+| `MCP_URL` | `http://127.0.0.1:<PORT>/mcp` | The MCP endpoint the agent connects to. Its host is accepted as Host, and the agent's own calls carry a random per-process token that exempts them from the `/mcp` rate limit (unless a proxy relayed them), so it may point at a non-loopback address. |
 | `WEATHER_USER_AGENT` | `ambree-alexa/<version> (+https://alexa.ambree.ai)` | User-Agent sent to the feeds. |
 | `FEEDS` | `on` | `off` disables both feeds; tools then report `unavailable`. |
 | `PLACES_FILE` | `data/places.json` | The places dataset. |
@@ -120,20 +124,22 @@ npm run test:e2e    # Playwright (Chromium): passcode gate, typed and chip turns
 npm run check       # typecheck + test
 ```
 
-Every test runs offline. They cover SDK conformance (the SDK client negotiates `2025-11-25`; serverInfo, tools,
-schemas, icons), the transport (405, Origin and Host checks, protocol version, 413, 415, SEP-1303 errors), both feed
-clients (Expires caching, 304, stale-if-error, back-off), `replan_day` decisions, the agent (tool calls seen at
-`/mcp`, round caps, fallbacks, budget, no user text in logs), rate limits, sessions, static files and the dataset
-invariants. The e2e suite also fails on any console error or any request to another origin.
+Every test runs offline: **161 vitest tests** in 12 files and **8 Playwright tests**. They cover SDK conformance (the
+SDK client negotiates `2025-11-25`; serverInfo, tools, 2020-12 schemas that the SDK client's Ajv compiles, icons),
+the transport (405, batches, Origin and Host checks, protocol version, 413, 415, SEP-1303 errors), both feed
+clients (Expires caching, 304, stale-if-error, back-off), `replan_day` decisions (including reports about now),
+the agent (tool calls seen at `/mcp`, round caps, fallbacks, budget reservation, the in-flight cap, no user text in
+logs), rate limits, sessions, static files and the dataset invariants. The e2e suite also fails on any console error
+or any request to another origin. `npm audit` reports 0 advisories, dev dependencies included.
 
 ## Data sources and licences
 
 - **Weather:** Data from MET Norway, CC BY 4.0. We summarise it into spoken advice.
 - **Cyclone alerts:** GDACS (United Nations and European Commission). Not an official warning: answers point to
   the Mauritius Meteorological Services.
-- **Places:** `data/places.json`, curated for Ambree from the cited sources (facts plus our own words). The copy
-  here is a small **seed** (`"seed": true`) that the researched dataset replaces. Every record has an https
-  `source` and a `verified_at` date; tests check the invariants on whatever dataset is present.
+- **Places:** `data/places.json`, the researched dataset: 50 places in 13 areas, curated for Ambree from the cited
+  sources (facts plus our own words). Every place has an https `source` and a `verified_at` check date; tests check
+  the dataset's invariants.
 - **Fonts:** Instrument Serif, Instrument Sans and IBM Plex Mono, SIL OFL 1.1, self-hosted.
 
 Details in [`NOTICE.md`](NOTICE.md).

@@ -7,7 +7,8 @@ import { type TestApp, INIT_PARAMS, MCP_HEADERS, connectClient, rpc, startTestAp
 let t: TestApp;
 
 beforeAll(async () => {
-  t = await startTestApp({ env: { PUBLIC_ORIGIN: "https://alexa.ambree.ai", ALLOWED_ORIGINS: "https://ambree.ai" } });
+  // RATE_LIMIT_SCALE: this suite sends many /mcp requests from one loopback client.
+  t = await startTestApp({ env: { PUBLIC_ORIGIN: "https://alexa.ambree.ai", ALLOWED_ORIGINS: "https://ambree.ai", RATE_LIMIT_SCALE: "10" } });
 });
 afterAll(() => t.close());
 
@@ -130,12 +131,43 @@ describe("errors", () => {
     await client.close();
   });
 
-  it("an unknown tool is a JSON-RPC error -32602", async () => {
+  it("an unknown tool is a JSON-RPC error -32602, without a repeated code in the message", async () => {
     const res = await post(rpc("tools/call", { name: "book_hotel", arguments: {} }));
     const body = await res.json();
     expect(body.result).toBeUndefined();
     expect(body.error.code).toBe(-32602);
-    expect(body.error.message).toMatch(/Unknown tool/);
+    expect(body.error.message).toMatch(/^Unknown tool: book_hotel\. Available tools: find_places, /);
+    expect(body.error.message).not.toMatch(/MCP error/);
+  });
+
+  it("a non-string tool name is -32602 too (not an internal error)", async () => {
+    for (const name of [{ toString: 1 }, 42, null, ["find_places"]]) {
+      const body = await (await post(rpc("tools/call", { name, arguments: {} }))).json();
+      expect(body.error.code, JSON.stringify(name)).toBe(-32602);
+      expect(body.error.message).toMatch(/^Invalid tool name: expected a string\./);
+      expect(body.error.message).not.toMatch(/MCP error/);
+    }
+  });
+
+  it("a malformed tools/call is a readable -32602, not an internal error with an issue dump", async () => {
+    const body = await (await post(rpc("tools/call", { name: "find_places", arguments: "not an object" }))).json();
+    expect(body.error.code).toBe(-32602);
+    expect(body.error.message).toBe("Invalid tools/call request: params.arguments: Invalid input: expected record, received string");
+    expect(body.error.message).not.toMatch(/MCP error/);
+  });
+
+  it("rejects a JSON-RPC batch with 400 and -32600", async () => {
+    const batch = JSON.stringify([
+      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "place_details", arguments: { place: "Blue Penny Museum" } } },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "place_details", arguments: { place: "Blue Penny Museum" } } },
+    ]);
+    const res = await post(batch, { "MCP-Protocol-Version": "2025-11-25" });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toMatchObject({ jsonrpc: "2.0", id: null, error: { code: -32600 } });
+    expect(body.error.message).toMatch(/batches are not supported \(removed in MCP 2025-06-18\)/);
+    // Even a batch of one is refused.
+    expect((await post(JSON.stringify([JSON.parse(rpc("tools/list"))]))).status).toBe(400);
   });
 
   it("the SDK client surfaces an unknown tool as a thrown McpError", async () => {

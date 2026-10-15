@@ -1,10 +1,11 @@
 // weather_now: the live hourly forecast for an area, with cyclone alerts near Mauritius.
 
 import { z } from "zod";
-import { isDangerous } from "../feeds/cyclones.ts";
+import { isDangerous, isWorthWatching } from "../feeds/cyclones.ts";
 import { floorHour, hourOfMu, isoMu } from "../time.ts";
-import { ATTRIBUTION, type ToolDeps, type ToolOutcome, fail, forecastPoint, resolveArea } from "./context.ts";
-import { cycloneOut, cyclonesOut, hourOut, hoursOut, isWindy, rainySpells, spokenCycloneName, summarise, summaryOut } from "./forecast.ts";
+import { ATTRIBUTION, type ToolDeps, type ToolOutcome, fail, forecastPoint, resolveArea, viaPrefix } from "./context.ts";
+import { areaOut } from "./find-places.ts";
+import { alertArticle, cycloneOut, cyclonesOut, hourOut, hoursOut, isWindy, rainySpells, spokenCycloneName, summarise, summaryOut, watchSentence } from "./forecast.ts";
 import { capitalise, degrees, fitSpeech, spokenTime } from "./speech.ts";
 
 export const weatherNowInput = z.object({
@@ -14,7 +15,7 @@ export const weatherNowInput = z.object({
 export type WeatherNowInput = z.infer<typeof weatherNowInput>;
 
 export const weatherNowOutput = z.object({
-  area: z.object({ id: z.string(), name: z.string() }),
+  area: areaOut,
   status: z.enum(["ok", "stale", "unavailable"]),
   retrieved_at: z.string().nullable(),
   updated_at: z.string().nullable(),
@@ -29,7 +30,7 @@ export type WeatherNowOutput = z.infer<typeof weatherNowOutput>;
 export async function weatherNow(input: WeatherNowInput, deps: ToolDeps): Promise<ToolOutcome<WeatherNowOutput>> {
   const r = resolveArea(deps.places, input.area);
   if ("error" in r) return fail(r.error);
-  const { area } = r;
+  const { area, via } = r;
   const now = deps.now();
   const point = forecastPoint(area);
   const [wx, tc] = await Promise.all([deps.weather.get(point.lat, point.lon, now), deps.cyclones.get(now)]);
@@ -39,6 +40,7 @@ export async function weatherNow(input: WeatherNowInput, deps: ToolDeps): Promis
   const status = wx.status !== "unavailable" && steps.length === 0 ? "unavailable" : wx.status;
   const summary = summarise(steps);
   const danger = tc.systems.find(isDangerous);
+  const watch = danger ? undefined : tc.systems.find(isWorthWatching);
 
   let weatherSentence: string;
   let second = "";
@@ -54,7 +56,7 @@ export async function weatherNow(input: WeatherNowInput, deps: ToolDeps): Promis
     if (!spells.length) rain = windy ? "it should stay dry but windy" : "it should stay dry";
     else if (spells[0]!.start === 0) {
       const end = steps[spells[0]!.end + 1];
-      rain = end ? `with rain until about ${spokenTime(hourOfMu(end.time))}` : "with rain on and off";
+      rain = end ? `with rain until about ${spokenTime(hourOfMu(end.time))}` : `with rain for the next ${steps.length} hours`;
     } else rain = `with rain likely from about ${spokenTime(hourOfMu(steps[spells[0]!.start]!.time))}`;
     const span = `the next ${steps.length} hours`;
     weatherSentence = !spells.length
@@ -65,17 +67,19 @@ export async function weatherNow(input: WeatherNowInput, deps: ToolDeps): Promis
     }
     if (status === "stale") second = "This forecast is a few hours old.";
   }
+  weatherSentence = viaPrefix(via, weatherSentence);
   let speech = fitSpeech(`${weatherSentence} ${second}`, weatherSentence);
   if (danger) {
-    const level = danger.alertLevel === "Red" ? "a red" : "an orange";
-    const alert = `${capitalise(spokenCycloneName(danger.name))} has ${level} alert near Mauritius, so follow the official cyclone bulletins from the Mauritius Meteorological Services.`;
+    const alert = `${capitalise(spokenCycloneName(danger.name))} has ${alertArticle(danger.alertLevel)} alert near Mauritius, so follow the official cyclone bulletins from the Mauritius Meteorological Services.`;
     speech = fitSpeech(`${alert} ${weatherSentence}`, alert);
+  } else if (watch) {
+    speech = fitSpeech(`${weatherSentence} ${watchSentence(watch)}`, `${weatherSentence} ${watchSentence(watch, true)}`, watchSentence(watch));
   }
 
   return {
     ok: true,
     value: {
-      area: { id: area.id, name: area.name },
+      area: { id: area.id, name: area.name, ...(via ? { via_place: via.name } : {}) },
       status,
       retrieved_at: wx.fetchedAt === null ? null : isoMu(wx.fetchedAt),
       updated_at: wx.updatedAt,

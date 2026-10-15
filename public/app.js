@@ -238,8 +238,8 @@
     for (const c of chips) c.disabled = on;
   }
 
-  // ---- A turn. ----
-  async function ask(raw) {
+  // ---- A turn. `typed` turns give focus back to the input, which is disabled meanwhile. ----
+  async function ask(raw, typed) {
     const text = String(raw || "").trim().slice(0, 300);
     if (!text || busy) return;
     stopSpeaking();
@@ -274,6 +274,7 @@
     } finally {
       setBusy(false);
       setState("idle");
+      if (typed) input.focus();
     }
     live.textContent = reply;
     speak(reply);
@@ -283,7 +284,7 @@
     event.preventDefault();
     const text = input.value;
     input.value = "";
-    ask(text);
+    ask(text, true);
   });
   for (const chip of chips) chip.addEventListener("click", () => ask(chip.dataset.text));
 

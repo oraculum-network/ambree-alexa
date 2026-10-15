@@ -10,7 +10,7 @@ import { type HourSpec, type GdacsSpec, makeForecast, makeGdacs } from "./foreca
 import { type MockServer, json, startMockServer } from "./mock-server.ts";
 
 export const FIXTURE_PLACES = fileURLToPath(new URL("../fixtures/places.json", import.meta.url));
-export const SEED_PLACES = fileURLToPath(new URL("../../data/places.json", import.meta.url));
+export const DATASET_PLACES = fileURLToPath(new URL("../../data/places.json", import.meta.url));
 
 /** 2026-10-15 09:30 UTC = 13:30 in Mauritius (a Thursday afternoon). */
 export const FIXED_NOW = Date.UTC(2026, 9, 15, 9, 30);

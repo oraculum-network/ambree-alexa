@@ -17,6 +17,8 @@ export const CYCLONE_ATTRIBUTION = "GDACS";
 
 /** Systems within this distance of Mauritius, or listing it as affected, count as near. */
 export const NEAR_KM = 1200;
+/** An orange or red system this close (or affecting Mauritius) means "stay safe". */
+export const STAY_SAFE_KM = 800;
 export const MAURITIUS = { lat: -20.2, lon: 57.5, iso3: "MUS" } as const;
 
 const TTL_MS = 30 * 60 * 1000;
@@ -125,9 +127,19 @@ export function nearMauritius(systems: CycloneSystem[]): NearbyCyclone[] {
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
-/** Orange or Red near Mauritius: the only case where Ambree tells travellers to stay put. */
+const isSevere = (s: NearbyCyclone) => s.alertLevel === "Orange" || s.alertLevel === "Red";
+
+/**
+ * The only case where Ambree tells travellers to stay put: an Orange or Red alert that GDACS
+ * says affects Mauritius, or that is within STAY_SAFE_KM.
+ */
 export function isDangerous(s: NearbyCyclone): boolean {
-  return s.alertLevel === "Orange" || s.alertLevel === "Red";
+  return isSevere(s) && (s.affectsMauritius || s.distanceKm <= STAY_SAFE_KM);
+}
+
+/** An Orange or Red alert further out (up to NEAR_KM): mentioned, with the bulletins advice. */
+export function isWorthWatching(s: NearbyCyclone): boolean {
+  return isSevere(s) && !isDangerous(s);
 }
 
 export interface CycloneClientOptions {

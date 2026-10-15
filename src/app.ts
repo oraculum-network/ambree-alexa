@@ -6,9 +6,11 @@
 //   GET  /healthz      { ok, version }
 //   GET  /             The voice page (or the unlock page), then static files.
 
+import { randomBytes } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { createBudget, type Budget } from "./agent/budget.ts";
@@ -18,11 +20,11 @@ import { type PlacesIndex, loadPlacesIndex } from "./data/places.ts";
 import { createCycloneClient, type CycloneClient } from "./feeds/cyclones.ts";
 import { createWeatherClient, type WeatherClient } from "./feeds/weather.ts";
 import { readJsonBody } from "./http/body.ts";
-import { clientIp, isLocalUnproxied } from "./http/client-ip.ts";
+import { INTERNAL_HEADER, createClientIdentity } from "./http/client-ip.ts";
 import { sendJson, sendJsonRpcError, setSecurityHeaders } from "./http/headers.ts";
 import { type OriginPolicy, createOriginPolicy } from "./http/origin.ts";
 import { LIMITS, type RateLimiter, createRateLimiter } from "./http/rate-limit.ts";
-import { SESSION_COOKIE, issueSession, passcodeMatches, readCookie, sessionCookie, verifySession } from "./http/session.ts";
+import { issueSession, passcodeMatches, readCookie, sessionCookie, sessionCookieName, verifySession } from "./http/session.ts";
 import { resolveStatic, sendFile } from "./http/static.ts";
 import { type Logger, jsonLogger } from "./log.ts";
 import { handleMcp } from "./mcp/endpoint.ts";
@@ -30,6 +32,8 @@ import { VERSION } from "./meta.ts";
 import type { ToolDeps } from "./tools/context.ts";
 
 const PUBLIC_DIR = realpathSync(fileURLToPath(new URL("../public", import.meta.url)));
+// Compared case-insensitively: on a case-insensitive filesystem /INDEX.html is the same file.
+const INDEX_FILE = join(PUBLIC_DIR, "index.html").toLowerCase();
 const API_BODY_LIMIT = 16 * 1024;
 
 const AgentRequest = z.object({
@@ -87,17 +91,24 @@ export function createApp(opts: AppOptions): App {
     createRateLimiter({ perMinute: l.perMinute * config.rateLimitScale, burst: Math.max(1, Math.round(l.burst * config.rateLimitScale)) });
   const limits = { mcp: limiter(LIMITS.mcp), agent: limiter(LIMITS.agent), unlock: limiter(LIMITS.unlock) };
 
+  // The agent's own MCP calls carry this random per-process token (never logged, never
+  // echoed), which exempts them from the /mcp rate limit when no proxy relayed them.
+  const internalToken = randomBytes(32).toString("base64url");
+  const identity = createClientIdentity({ trustProxyHops: config.trustProxyHops, internalToken, log });
+
   let port = config.port;
-  let policy: OriginPolicy = createOriginPolicy({ publicOrigin: config.publicOrigin ?? `http://localhost:${port}`, port, extraOrigins: config.allowedOrigins });
+  const extraHosts = config.mcpUrl ? [new URL(config.mcpUrl).hostname] : [];
+  const makePolicy = (): OriginPolicy => createOriginPolicy({ publicOrigin: publicOrigin(), port, extraOrigins: config.allowedOrigins, extraHosts });
   const publicOrigin = () => config.publicOrigin ?? `http://localhost:${port}`;
+  let policy: OriginPolicy = makePolicy();
   const https = () => publicOrigin().startsWith("https:");
   const mcpUrl = () => config.mcpUrl ?? `http://127.0.0.1:${port}/mcp`;
 
   const hasSession = (req: IncomingMessage) =>
-    !config.passcode || verifySession(readCookie(req.headers.cookie, SESSION_COOKIE), config.sessionSecret!, now());
+    !config.passcode || verifySession(readCookie(req.headers.cookie, sessionCookieName(https())), config.sessionSecret!, now(), config.passcode);
 
   function rateLimited(res: ServerResponse, l: RateLimiter, req: IncomingMessage, jsonRpc: boolean): boolean {
-    const d = l.take(clientIp(req, config.trustProxyHops));
+    const d = l.take(identity.key(req));
     if (d.ok) return false;
     const headers = { "Retry-After": String(d.retryAfterSec) };
     if (jsonRpc) sendJsonRpcError(res, 429, -32000, "Too many requests", headers);
@@ -126,7 +137,7 @@ export function createApp(opts: AppOptions): App {
     if (!body.ok) return sendJson(res, body.status, { error: "bad_request", message: body.message }, body.status === 413 ? { Connection: "close" } : {});
     const parsed = AgentRequest.safeParse(body.value);
     if (!parsed.success) return sendJson(res, 400, { error: "bad_request", message: "Send { text } with 1 to 300 characters, and at most 6 history items." });
-    const result = await runAgentTurn(parsed.data, { config, mcpUrl: mcpUrl(), publicOrigin: publicOrigin(), places, budget, now });
+    const result = await runAgentTurn(parsed.data, { config, mcpUrl: mcpUrl(), mcpHeaders: { [INTERNAL_HEADER]: internalToken }, publicOrigin: publicOrigin(), places, budget, now });
     meta.mode = result.mode;
     meta.tools = result.trace.map((t) => t.tool);
     sendJson(res, 200, result);
@@ -142,24 +153,24 @@ export function createApp(opts: AppOptions): App {
     if (!parsed.success || !passcodeMatches(parsed.data.passcode, config.passcode)) {
       return sendJson(res, 401, { error: "wrong_passcode", message: "That passcode didn't work." });
     }
-    sendJson(res, 200, { ok: true }, { "Set-Cookie": sessionCookie(issueSession(config.sessionSecret!, now()), https()) });
+    sendJson(res, 200, { ok: true }, { "Set-Cookie": sessionCookie(issueSession(config.sessionSecret!, now(), config.passcode), https()) });
   }
 
   async function staticRoute(req: IncomingMessage, res: ServerResponse, path: string, meta: RequestMeta): Promise<void> {
     if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "method_not_allowed" }, { Allow: "GET, HEAD" });
     const head = req.method === "HEAD";
-    let target = path;
-    if (path === "/" || path === "/index.html") {
-      meta.route = "page";
-      target = hasSession(req) ? "/index.html" : "/unlock.html";
-    } else {
-      meta.route = path.endsWith(".html") ? "page" : "static";
-    }
-    const found = await resolveStatic(PUBLIC_DIR, target);
+    let found = await resolveStatic(PUBLIC_DIR, path === "/" ? "/index.html" : path);
     if (!found.ok) {
       meta.route = "not_found";
       return sendJson(res, found.status, { error: found.status === 400 ? "bad_request" : "not_found" });
     }
+    // Gate on the file we resolved, not the raw path, so variants such as //index.html,
+    // /%69ndex.html or /index.html/ can't reach the voice page without a session.
+    if (found.file.toLowerCase() === INDEX_FILE && !hasSession(req)) {
+      found = await resolveStatic(PUBLIC_DIR, "/unlock.html");
+      if (!found.ok) throw new Error("unlock page missing");
+    }
+    meta.route = found.type.startsWith("text/html") ? "page" : "static";
     await sendFile(res, found.file, found.type, head);
   }
 
@@ -192,7 +203,7 @@ export function createApp(opts: AppOptions): App {
     }
 
     if (isMcp) {
-      if (!isLocalUnproxied(req) && rateLimited(res, limits.mcp, req, true)) return;
+      if (!identity.isInternal(req) && rateLimited(res, limits.mcp, req, true)) return;
       const info = { tools: [] as string[] };
       meta.tools = info.tools;
       return handleMcp(req, res, deps, info);
@@ -224,7 +235,7 @@ export function createApp(opts: AppOptions): App {
         server.once("error", reject);
         const done = () => {
           port = (server.address() as AddressInfo).port;
-          policy = createOriginPolicy({ publicOrigin: publicOrigin(), port, extraOrigins: config.allowedOrigins });
+          policy = makePolicy();
           resolve(port);
         };
         if (config.host) server.listen(config.port, config.host, done);

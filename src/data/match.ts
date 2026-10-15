@@ -43,29 +43,43 @@ export function containsPhrase(text: string, phrase: string): boolean {
   return ` ${text} `.includes(` ${phrase} `);
 }
 
+/** Typos tolerated: one edit per 8 characters of the label, and always at least one. */
+export function editsAllowed(label: string): number {
+  return Math.max(1, Math.floor(label.length / 8));
+}
+
+/** Partial matches (containment, prefix, part of a label) need this many characters. */
+const MIN_PARTIAL = 5;
+
 /**
  * Score how well a query matches one label (both normalized), 0..1:
- * exact 1, the query contains the label 0.92, the label starts with or contains the
- * query 0.85/0.8, else edit similarity (whole string or best word window) scaled.
+ *  - exact: 1;
+ *  - the query contains the whole label: 0.92;
+ *  - the label starts with, or contains, the query (5+ characters): 0.85 / 0.8;
+ *  - a typo within editsAllowed of the label: 0.6, or of a same-length part of it: 0.58.
+ * Anything else scores below MATCH_THRESHOLD (similarity x 0.5, for ranking suggestions).
+ * So "port luis", "Chamrel" and "Flic n Flac" match, but "Grand Bassin" (3 edits from
+ * "grand baie"), "Grand Bois", "Bay" and "Mont" don't.
  */
 export function matchScore(query: string, label: string): number {
   const q = stripArticle(query);
   const l = stripArticle(label);
   if (!q || !l) return 0;
   if (q === l) return 1;
-  if (containsPhrase(q, l) && l.length >= 4) return 0.92;
-  if (q.length >= 4 && l.startsWith(q + " ")) return 0.85;
-  if (q.length >= 4 && containsPhrase(l, q)) return 0.8;
-  let best = similarity(q, l);
-  // Compare against windows of the label with as many words as the query (typos in a part).
+  if (l.length >= 4 && containsPhrase(q, l)) return 0.92;
+  if (q.length >= MIN_PARTIAL && l.startsWith(q + " ")) return 0.85;
+  if (q.length >= MIN_PARTIAL && containsPhrase(l, q)) return 0.8;
+  if (levenshtein(q, l) <= editsAllowed(l)) return 0.6;
+  // A typo in one part of a longer label ("souilac" for "souillac and bel ombre").
   const qw = q.split(" ");
   const lw = l.split(" ");
-  if (lw.length > qw.length) {
+  if (q.length >= MIN_PARTIAL && lw.length > qw.length) {
     for (let i = 0; i + qw.length <= lw.length; i++) {
-      best = Math.max(best, similarity(q, lw.slice(i, i + qw.length).join(" ")) * 0.9);
+      const part = lw.slice(i, i + qw.length).join(" ");
+      if (levenshtein(q, part) <= editsAllowed(part)) return 0.58;
     }
   }
-  return best >= 0.72 ? best * 0.78 : best * 0.5;
+  return similarity(q, l) * 0.5;
 }
 
 export interface Candidate<T> {
@@ -82,6 +96,12 @@ export function rank<T>(query: string, candidates: Candidate<T>[]): Array<{ item
 
 /** Accept a match at or above this score (exact, containment, or a close typo). */
 export const MATCH_THRESHOLD = 0.56;
+
+/** The best candidate at or above MATCH_THRESHOLD, with its score. */
+export function bestScored<T>(query: string, candidates: Candidate<T>[]): { item: T; score: number } | null {
+  const top = rank(query, candidates)[0];
+  return top && top.score >= MATCH_THRESHOLD ? top : null;
+}
 
 export function bestMatch<T>(query: string, candidates: Candidate<T>[]): T | null {
   const top = rank(query, candidates)[0];

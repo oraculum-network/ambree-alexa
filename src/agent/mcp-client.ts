@@ -30,9 +30,9 @@ export interface McpSession {
 
 const CALL_TIMEOUT_MS = 10_000;
 
-export async function openMcpSession(url: string, trace: TraceEntry[], signal?: AbortSignal): Promise<McpSession> {
+export async function openMcpSession(url: string, trace: TraceEntry[], signal?: AbortSignal, headers: Record<string, string> = {}): Promise<McpSession> {
   const client = new Client({ name: "ambree-voice-agent", version: VERSION });
-  const transport = new StreamableHTTPClientTransport(new URL(url));
+  const transport = new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers } });
   await client.connect(transport, { signal, timeout: CALL_TIMEOUT_MS });
   const { tools } = await client.listTools(undefined, { signal, timeout: CALL_TIMEOUT_MS });
 

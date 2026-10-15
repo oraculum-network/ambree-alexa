@@ -2,9 +2,10 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { OFFLINE_HINT, routeOffline } from "../src/agent/offline.ts";
-import { MAX_CALLS_PER_TURN, MAX_TOOL_ROUNDS, NOTICES, systemPrompt, tidyReply } from "../src/agent/loop.ts";
+import { createBudget } from "../src/agent/budget.ts";
+import { MAX_CALLS_PER_TURN, MAX_TOOL_ROUNDS, NOTICES, runAgentTurn, systemPrompt, tidyReply } from "../src/agent/loop.ts";
 import { loadPlacesIndex } from "../src/data/places.ts";
-import { FIXED_NOW, FIXTURE_PLACES, SEED_PLACES, type TestApp, startTestApp } from "./helpers/app.ts";
+import { FIXED_NOW, FIXTURE_PLACES, DATASET_PLACES, type TestApp, startTestApp } from "./helpers/app.ts";
 import { rainBetween } from "./helpers/forecast.ts";
 import { type MockServer, type RecordedRequest, json, startMockServer } from "./helpers/mock-server.ts";
 
@@ -202,6 +203,90 @@ describe("LLM mode", () => {
   });
 });
 
+describe("budget reservation and the in-flight cap (R5)", () => {
+  async function concurrentTurns(n: number, env: Record<string, string>) {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    llm = await startMockServer(async (_req, res) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 300));
+      inFlight--;
+      json(res, 200, completion({ content: "Fine." }, { prompt_tokens: 2000, completion_tokens: 40, cost: 0.004 }));
+    });
+    t = await startTestApp({ env: { OPENROUTER_API_KEY: KEY, OPENROUTER_URL: `${llm.url}/api/v1/chat/completions`, RATE_LIMIT_SCALE: "100", FEEDS: "off", ...env } });
+    const replies = (await Promise.all(Array.from({ length: n }, (_, i) => ask(t!.url, `question number ${i}`).then((r) => r.json())))) as Array<{ mode: string; notice?: string }>;
+    return { replies, maxInFlight: () => maxInFlight };
+  }
+
+  it("the reviewer's case: 20 concurrent turns stay within the cap plus one reservation", async () => {
+    // AGENT_PRICE_OUT_PER_M=15 makes the worst-case reservation (300 output tokens) at least the
+    // real cost of a call here ($0.004), as it is with the default prices and real usage.
+    const { replies } = await concurrentTurns(20, { AGENT_DAILY_USD: "0.01", AGENT_PRICE_OUT_PER_M: "15" });
+    const reservations = llm!.requests.map((r) => {
+      const body = bodyOf(r);
+      return t!.app.budget.reservationFor(JSON.stringify(body.messages).length + JSON.stringify(body.tools).length, 300);
+    });
+    const oneReservation = Math.max(...reservations);
+    expect(oneReservation).toBeGreaterThanOrEqual(0.004);
+    const { usd, inflight } = t!.app.budget.snapshot();
+    // Before the fix: 22 LLM calls and $0.088 (8.8x the cap).
+    expect(usd).toBeLessThanOrEqual(0.01 + oneReservation);
+    expect(llm!.requests.length).toBeLessThanOrEqual(3);
+    expect(inflight).toBe(0);
+    expect(replies.filter((r) => r.mode === "llm")).toHaveLength(llm!.requests.length);
+    expect(replies.filter((r) => r.notice === NOTICES.budget).length).toBeGreaterThanOrEqual(17);
+  });
+
+  it("caps LLM turns in flight at 3; the rest answer offline with a notice", async () => {
+    const { replies, maxInFlight } = await concurrentTurns(10, { AGENT_DAILY_USD: "5" });
+    expect(maxInFlight()).toBe(3);
+    expect(replies.filter((r) => r.mode === "llm")).toHaveLength(3);
+    expect(replies.filter((r) => r.mode === "offline" && r.notice === NOTICES.busy)).toHaveLength(7);
+    expect(t!.app.budget.snapshot()).toMatchObject({ inflight: 0, turns: 3 });
+  });
+
+  async function directTurn(mock: MockServer, budget: ReturnType<typeof createBudget>, llmTimeoutMs = 20_000) {
+    t = await startTestApp({ env: { FEEDS: "off" } });
+    return runAgentTurn(
+      { text: "Tell me about the Blue Penny Museum." },
+      {
+        config: { openrouterKey: KEY, openrouterUrl: `${mock.url}/api/v1/chat/completions`, model: "amazon/nova-2-lite-v1", fallbackModels: [] },
+        mcpUrl: `${t.url}/mcp`,
+        publicOrigin: t.url,
+        places: t.app.places,
+        budget,
+        now: () => FIXED_NOW,
+        llmTimeoutMs,
+      },
+    );
+  }
+  const newBudget = () => createBudget({ dailyUsd: 0.5, dailyTurns: 300, priceInPerM: 0.3, priceOutPerM: 2.5, now: () => FIXED_NOW });
+
+  it("counts a timed-out call at its reserved cost", async () => {
+    llm = await startMockServer(() => new Promise(() => {}));
+    const budget = newBudget();
+    const out = await directTurn(llm, budget, 100);
+    expect(out).toMatchObject({ mode: "offline", notice: NOTICES.down });
+    expect(budget.snapshot().usd).toBeGreaterThan(0.0005);
+    expect(budget.snapshot().inflight).toBe(0);
+  });
+
+  it("counts a reply without usage at its reserved cost, and an error status at nothing", async () => {
+    llm = await startMockServer((_req, res) => json(res, 200, { model: "m", choices: [{ message: { content: "Fine." } }] }));
+    const budget = newBudget();
+    expect((await directTurn(llm, budget)).mode).toBe("llm");
+    expect(budget.snapshot().usd).toBeGreaterThan(0.0005);
+    await t!.close();
+    await llm.close();
+
+    llm = await startMockServer((_req, res) => json(res, 402, { error: { message: "no credit" } }));
+    const budget2 = newBudget();
+    expect((await directTurn(llm, budget2)).notice).toBe(NOTICES.credit);
+    expect(budget2.snapshot().usd).toBe(0);
+  });
+});
+
 describe("offline mode", () => {
   it("is used when no key is configured, without a notice", async () => {
     t = await startTestApp({ feeds: { weather: rainBetween(13, 16) } });
@@ -214,6 +299,22 @@ describe("offline mode", () => {
     expect(t.logs.some((l) => l.route === "/mcp" && Array.isArray(l.tools) && l.tools.includes("replan_day"))).toBe(true);
   });
 
+  for (const [label, file] of [
+    ["the fixture", FIXTURE_PLACES],
+    ["the dataset", DATASET_PLACES],
+  ] as const) {
+    it(`at 18:35 Mauritius time the headline chip re-plans this evening (${label})`, async () => {
+      const evening = Date.UTC(2026, 9, 15, 14, 35);
+      t = await startTestApp({ now: () => evening, env: { PLACES_FILE: file } });
+      const out = await (await ask(t.url, CHIPS[0]!)).json();
+      expect(out.trace).toEqual([expect.objectContaining({ tool: "replan_day", args: { area: "grand-baie", window: "afternoon", reported_weather: "rain" }, ok: true })]);
+      expect(out.reply).toMatch(/^The afternoon's over, so for this evening: since it's raining in Grand Baie, head somewhere covered\. Try /);
+      expect(out.reply).not.toMatch(/tomorrow/);
+      await t.close();
+      t = undefined;
+    });
+  }
+
   it("answers an unknown intent with a 2-sentence hint", async () => {
     t = await startTestApp();
     const out = await (await ask(t.url, "Sing me a song")).json();
@@ -223,7 +324,7 @@ describe("offline mode", () => {
 
   for (const [label, file] of [
     ["the fixture", FIXTURE_PLACES],
-    ["the seed", SEED_PLACES],
+    ["the dataset", DATASET_PLACES],
   ] as const) {
     it(`routes each suggestion chip to a non-error tool result with ${label} data`, async () => {
       const places = loadPlacesIndex(file);
@@ -248,6 +349,19 @@ describe("offline mode", () => {
     expect(routeOffline(CHIPS[3]!, places)).toEqual({ tool: "place_details", args: { place: "Blue Penny Museum" } });
     expect(routeOffline("Is it raining in Mahebourg?", places)?.tool).toBe("weather_now");
     expect(routeOffline("Any museums near Mahébourg?", places)).toEqual({ tool: "find_places", args: { area: "mahebourg", kind: "museum" } });
+  });
+
+  it("understands 'rains', 'what is there to do', 'what can I do' and 'things to do' (R16)", () => {
+    const places = loadPlacesIndex(DATASET_PLACES);
+    expect(routeOffline("what is there to do in Tamarin when it rains", places)).toEqual({ tool: "replan_day", args: { area: "black-river", reported_weather: "rain" } });
+    expect(routeOffline("What can I do when it's windy in Grand Baie?", places)).toEqual({ tool: "replan_day", args: { area: "grand-baie", reported_weather: "wind" } });
+    expect(routeOffline("What can I do in Port Louis?", places)).toEqual({ tool: "find_places", args: { area: "port-louis" } });
+    expect(routeOffline("Things to do in Mahebourg", places)).toEqual({ tool: "find_places", args: { area: "mahebourg" } });
+    expect(routeOffline("What's there to do near Chamarel?", places)).toEqual({ tool: "find_places", args: { area: "chamarel" } });
+    expect(routeOffline("It rains in Grand Baie, what now with my afternoon?", places)).toEqual({
+      tool: "replan_day",
+      args: { area: "grand-baie", window: "afternoon", reported_weather: "rain" },
+    });
   });
 });
 

@@ -2,7 +2,7 @@
   "name": "ambree-alexa",
   "version": "0.1.0",
   "description": "Ambree for Alexa+: an MCP server with hyper-local Mauritius travel tools, plus a simulated Alexa+ voice page that is a real MCP client.",
-  "private": false,
+  "private": true,
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -29,6 +29,9 @@
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.5",
     "typescript": "5.9.3",
-    "vitest": "3.2.7"
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "vite": "7.3.7"
   }
 }

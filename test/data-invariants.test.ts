@@ -1,13 +1,13 @@
 // Invariants on the shipped dataset (data/places.json). They must hold for whatever
-// dataset is there: the seed today, the researched one later.
+// dataset is there.
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DatasetSchema, parseDataset } from "../src/data/places.ts";
 import { haversineKm } from "../src/geo.ts";
-import { SEED_PLACES } from "./helpers/app.ts";
+import { DATASET_PLACES } from "./helpers/app.ts";
 
-const raw = JSON.parse(readFileSync(SEED_PLACES, "utf8"));
+const raw = JSON.parse(readFileSync(DATASET_PLACES, "utf8"));
 
 describe("data/places.json", () => {
   it("validates against the schema (and the loader's cross-checks)", () => {

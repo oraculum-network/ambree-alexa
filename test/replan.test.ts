@@ -3,10 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { travelMinutes } from "../src/geo.ts";
 import { sentences } from "../src/tools/speech.ts";
-import { type ReplanDayOutput, replanDay, replanDayInput, resolveWindow } from "../src/tools/replan-day.ts";
+import { type ReplanDayOutput, replanDay, replanDayInput, replanDayOutput, resolveWindow } from "../src/tools/replan-day.ts";
 import { FIXED_NOW } from "./helpers/app.ts";
 import { rainBetween } from "./helpers/forecast.ts";
-import { UNAVAILABLE, cyclone, fakeDeps, weatherOf } from "./helpers/deps.ts";
+import { UNAVAILABLE, cyclone, datasetPlaces, fakeDeps, weatherOf } from "./helpers/deps.ts";
 
 async function run(args: Record<string, unknown>, deps = fakeDeps()): Promise<ReplanDayOutput> {
   const out = await replanDay(replanDayInput.parse(args), deps);
@@ -22,18 +22,122 @@ describe("windows (Mauritius time, UTC+4)", () => {
     expect(w).toMatchObject({ date: "2026-10-15", fromHour: 13, toHour: 17, label: "this afternoon", tomorrow: false });
   });
 
-  it("moves a window that is already over to tomorrow and says so", async () => {
+  it("moves a window that is already over to tomorrow when nothing is reported, and says so", async () => {
     const w = resolveWindow("morning", FIXED_NOW);
-    expect(w).toMatchObject({ date: "2026-10-16", fromHour: 7, toHour: 12, label: "tomorrow morning", tomorrow: true });
-    const out = await run({ area: "grand-baie", window: "morning", reported_weather: "rain" });
+    expect(w).toMatchObject({ date: "2026-10-16", fromHour: 7, toHour: 12, label: "tomorrow morning", tomorrow: true, reportApplies: false });
+    const out = await run({ area: "grand-baie", window: "morning" });
     expect(out.window).toEqual({ label: "tomorrow morning", date: "2026-10-16", from: "07:00", to: "12:00" });
-    expect(out.speech).toMatch(/^For tomorrow morning, /);
+    expect(out.speech).toMatch(/^For tomorrow morning, the forecast for Grand Baie looks dry, so keep your plan\./);
+  });
+
+  it("with a report and the morning over, re-plans the rest of today and says so", async () => {
+    expect(resolveWindow("morning", FIXED_NOW, true)).toMatchObject({ name: "rest_of_day", rolledFrom: "morning", label: "the rest of today", fromHour: 13, toHour: 21, tomorrow: false, reportApplies: true });
+    const out = await run({ area: "grand-baie", window: "morning", reported_weather: "rain" });
+    expect(out.decision).toBe("swap");
+    expect(out.window).toEqual({ label: "the rest of today", date: "2026-10-15", from: "13:00", to: "21:00" });
+    expect(out.speech).toMatch(/^The morning's over, so for the rest of today: since it's raining in Grand Baie, head somewhere covered\. Try /);
+  });
+});
+
+describe("a weather report is about now (R2)", () => {
+  const EVENING = Date.UTC(2026, 9, 15, 14, 35); // 18:35 in Mauritius
+  const LATE = Date.UTC(2026, 9, 15, 17, 30); // 21:30 in Mauritius
+  const dryAll = (now: number) => weatherOf(() => ({}), now);
+
+  it("18:35 with reported rain and the afternoon window: a swap for this evening", async () => {
+    const out = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "rain", plan: "beach" },
+      fakeDeps({ now: EVENING, weather: dryAll(EVENING) }),
+    );
+    expect(out.decision).toBe("swap");
+    expect(out.window).toEqual({ label: "this evening", date: "2026-10-15", from: "18:00", to: "21:00" });
+    expect(out.weather.basis).toBe("both");
+    expect(out.reason).toBe("You reported rain.");
+    expect(out.options.every((o) => o.rain_ok)).toBe(true);
+    expect(out.speech).toMatch(/^The afternoon's over, so for this evening: since it's raining in Grand Baie, skip the beach\. Try /);
+    expect(sentences(out.speech)).toHaveLength(2);
+  });
+
+  it("18:35 with the researched dataset: shopping centres first, since museums close by late afternoon", async () => {
+    const out = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "rain", plan: "beach" },
+      fakeDeps({ places: datasetPlaces, now: EVENING, weather: dryAll(EVENING) }),
+    );
+    expect(out.decision).toBe("swap");
+    expect(out.options.length).toBeGreaterThanOrEqual(2);
+    expect(out.options.every((o) => o.kind === "shopping" && o.rain_ok)).toBe(true);
+    expect(out.reason).toBe("You reported rain. Evening, so shopping centres first: most museums close by late afternoon.");
+    expect(sentences(out.speech)).toHaveLength(2);
+    // The same request in the afternoon keeps the varied mix (a museum among the options).
+    const AFTERNOON = Date.UTC(2026, 9, 15, 9, 0); // 13:00 in Mauritius
+    const day = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "rain", plan: "beach" },
+      fakeDeps({ places: datasetPlaces, now: AFTERNOON, weather: dryAll(AFTERNOON) }),
+    );
+    expect(new Set(day.options.map((o) => o.kind)).size).toBeGreaterThan(1);
+  });
+
+  it("21:30 with reported rain and a dry tomorrow: keep for tomorrow, going by the forecast", async () => {
+    const out = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "rain", plan: "beach" },
+      fakeDeps({ now: LATE, weather: dryAll(LATE) }),
+    );
+    expect(out.decision).toBe("keep");
+    expect(out.window).toEqual({ label: "tomorrow afternoon", date: "2026-10-16", from: "12:00", to: "17:00" });
+    expect(out.weather.basis).toBe("forecast");
+    expect(out.reason).toBe("Dry forecast. Your report is about now, so it doesn't decide tomorrow.");
+    expect(out.speech).toMatch(/^It's raining now, but for tomorrow afternoon, the forecast for Grand Baie looks dry, so keep your plan\./);
+  });
+
+  it("21:30 with reported rain and a wet tomorrow: the swap comes from the forecast", async () => {
+    const out = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "rain" },
+      fakeDeps({ now: LATE, weather: weatherOf(rainBetween(13, 15), LATE) }),
+    );
+    expect(out.decision).toBe("swap");
+    expect(out.weather.basis).toBe("forecast");
+    expect(out.speech).toMatch(/^It's raining now, but for tomorrow afternoon, rain is forecast over Grand Baie from about one/);
+  });
+
+  it("21:30 with a report and no forecast: keeps tomorrow's plan and says why", async () => {
+    const out = await run({ area: "grand-baie", window: "afternoon", reported_weather: "rain" }, fakeDeps({ now: LATE, weather: UNAVAILABLE }));
+    expect(out.decision).toBe("keep");
+    expect(out.weather.basis).toBe("unavailable");
+    expect(out.speech).toBe("It's raining now, and I can't reach the forecast for tomorrow afternoon yet, so keep that plan for now. Ask me again closer to the time.");
+  });
+
+  it("reported wind gets the same treatment", async () => {
+    const evening = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "wind", plan: "catamaran trip" },
+      fakeDeps({ now: EVENING, weather: dryAll(EVENING) }),
+    );
+    expect(evening.decision).toBe("swap");
+    expect(evening.window.label).toBe("this evening");
+    expect(evening.speech).toMatch(/^The afternoon's over, so for this evening: it's too windy over Grand Baie for the water/);
+    expect(ids(evening)).not.toContain("gb-snorkel");
+
+    const late = await run(
+      { area: "grand-baie", window: "afternoon", reported_weather: "wind", plan: "catamaran trip" },
+      fakeDeps({ now: LATE, weather: dryAll(LATE) }),
+    );
+    expect(late.decision).toBe("keep");
+    expect(late.window.label).toBe("tomorrow afternoon");
+    expect(late.speech).toMatch(/^It's windy now, but for tomorrow afternoon, the forecast for Grand Baie looks dry, so keep your plan\./);
+  });
+
+  it("trusts a report for a window that starts later today", async () => {
+    const out = await run({ area: "grand-baie", window: "evening", reported_weather: "rain" });
+    expect(out.window).toMatchObject({ label: "this evening", from: "17:00" });
+    expect(out.decision).toBe("swap");
+    expect(out.weather.basis).toBe("both");
   });
 
   it("rest_of_day runs from now to 21:00, and after 21:00 means tomorrow", () => {
     expect(resolveWindow("rest_of_day", FIXED_NOW)).toMatchObject({ fromHour: 13, toHour: 21, label: "the rest of today" });
     const late = Date.UTC(2026, 9, 15, 17, 30); // 21:30 in Mauritius
     expect(resolveWindow("rest_of_day", late)).toMatchObject({ date: "2026-10-16", fromHour: 7, toHour: 21, label: "tomorrow" });
+    // From 21:00 a report about now can't roll anything over: tomorrow, from the forecast only.
+    expect(resolveWindow("afternoon", late, true)).toMatchObject({ date: "2026-10-16", label: "tomorrow afternoon", reportApplies: false });
     const early = Date.UTC(2026, 9, 15, 1); // 05:00 in Mauritius
     expect(resolveWindow("rest_of_day", early)).toMatchObject({ date: "2026-10-15", fromHour: 7 });
   });
@@ -137,6 +241,24 @@ describe("decisions", () => {
     });
   }
 
+  it("stay safe needs Mauritius affected or 800 km; out to 1,200 km it's advice only (R17)", async () => {
+    // Orange 700 km away, Mauritius not listed: stay safe.
+    expect((await run({ area: "grand-baie" }, fakeDeps({ cyclones: [cyclone("Orange", 700, false)] }))).decision).toBe("stay_safe");
+    // Orange 1,100 km away but GDACS lists Mauritius as affected: stay safe.
+    expect((await run({ area: "grand-baie" }, fakeDeps({ cyclones: [cyclone("Orange", 1100, true)] }))).decision).toBe("stay_safe");
+    // Red 1,000 km away, not affecting Mauritius: plan as usual, and mention the bulletins.
+    const far = await run({ area: "grand-baie", window: "afternoon" }, fakeDeps({ cyclones: [cyclone("Red", 1000, false)] }));
+    expect(far.decision).toBe("keep");
+    expect(far.reason).toMatch(/GDACS Red alert for Tropical Cyclone ALPHA-26, 1000 km from Mauritius: follow the official bulletins\./);
+    expect(far.speech).toMatch(/^The forecast for Grand Baie looks dry for this afternoon, so keep your plan\. Tropical Cyclone Alpha has a red alert about 1000 kilometres from Mauritius, so keep an eye on the official cyclone bulletins from the Mauritius Meteorological Services\.$/);
+    // A swap folds its first option into the first sentence to keep 2 sentences.
+    const farWet = await run({ area: "grand-baie", window: "afternoon", reported_weather: "rain" }, fakeDeps({ cyclones: [cyclone("Orange", 1150, false)] }));
+    expect(farWet.decision).toBe("swap");
+    expect(sentences(farWet.speech)).toHaveLength(2);
+    expect(farWet.speech).toMatch(/official cyclone bulletins/);
+    expect(farWet.speech.length).toBeLessThanOrEqual(280);
+  });
+
   it("a green cyclone does not stop the day", async () => {
     const out = await run({ area: "grand-baie", window: "afternoon" }, fakeDeps({ cyclones: [cyclone("Green")] }));
     expect(out.decision).toBe("keep");
@@ -164,10 +286,40 @@ describe("decisions", () => {
   });
 
   it("an unknown area is an error with suggestions", async () => {
-    const out = await replanDay(replanDayInput.parse({ area: "Grnd Bai" }), fakeDeps());
-    expect(out.ok).toBe(true); // close enough to match Grand Baie
+    const out = await replanDay(replanDayInput.parse({ area: "Grand Bai" }), fakeDeps());
+    expect(out.ok).toBe(true); // one edit: close enough to match Grand Baie
+    expect((await replanDay(replanDayInput.parse({ area: "Grnd Bai" }), fakeDeps())).ok).toBe(false); // two edits on ten letters
     const bad = await replanDay(replanDayInput.parse({ area: "Reykjavik" }), fakeDeps());
     expect(bad).toMatchObject({ ok: false });
     expect(!bad.ok && bad.message).toMatch(/^I don't know the area 'Reykjavik'\. Try: /);
+  });
+});
+
+describe("speech limits across the researched dataset", () => {
+  it("every area, window, report, time and cyclone state keeps speech to 2 sentences and 280 characters", async () => {
+    const times = [Date.UTC(2026, 9, 15, 3), FIXED_NOW, Date.UTC(2026, 9, 15, 14, 35), Date.UTC(2026, 9, 15, 17, 30)];
+    const reports = [undefined, "rain", "dry", "wind", "heat"] as const;
+    const windows = ["morning", "afternoon", "evening", "rest_of_day"] as const;
+    const storms = [[], [cyclone("Orange", 1100, false)], [cyclone("Red", 300, true)]];
+    let checked = 0;
+    for (const now of times) {
+      const wx = [weatherOf(rainBetween(13, 16), now), UNAVAILABLE];
+      for (const area of datasetPlaces.areas)
+        for (const window of windows)
+          for (const reported_weather of reports)
+            for (const cyclones of storms)
+              for (const weather of wx) {
+                const out = await replanDay(
+                  replanDayInput.parse({ area: area.name, window, reported_weather, plan: "beach" }),
+                  fakeDeps({ places: datasetPlaces, now, weather, cyclones }),
+                );
+                if (!out.ok) throw new Error(out.message);
+                replanDayOutput.parse(out.value);
+                expect(out.value.speech.length, out.value.speech).toBeLessThanOrEqual(280);
+                expect(sentences(out.value.speech).length, out.value.speech).toBeLessThanOrEqual(2);
+                checked++;
+              }
+    }
+    expect(checked).toBe(4 * 13 * 4 * 5 * 3 * 2);
   });
 });

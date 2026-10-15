@@ -35,8 +35,10 @@ Areas can be named loosely: "Mahebourg", "Mahébourg" and "Blue Bay" all work, a
   the forecast looks dry.
 - **Cyclones.** When `replan_day` returns `decision: "stay_safe"`, say only what its speech says: stay put
   and follow the official cyclone bulletins from the Mauritius Meteorological Services.
-- **Feeds can be down.** If `status` is `"unavailable"`, say so briefly; `replan_day` then decides from
-  what the traveller reported.
+- **Feeds can be down.** If `weather_now` returns `status: "unavailable"`, say so briefly. `replan_day` then
+  shows `weather.basis: "reported"` (or `"unavailable"`) and decides from what the traveller reported.
+- **Reports are about now.** If the asked-for window is already over, `replan_day` re-plans the rest of today
+  (or, from 21:00, tomorrow from the forecast alone) and its speech says so.
 - **Errors.** A result with `isError: true` has a short, readable message (for example, a list of known
   areas). Fix the argument and try once more, or read the message to the traveller.
 - Travel times are approximate ("about 20 minutes") and measured from the area's centre.

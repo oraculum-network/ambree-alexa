@@ -12,8 +12,9 @@ MCP spec 2025-11-25 and their docs. Each entry: what happened, the time it cost,
   repeats the code ("MCP error -32602: …") once you do throw it.
 - **Time lost:** about 25 minutes (reading `server/mcp.js`, then choosing a workaround).
 - **Workaround:** after registering the tools we wrap the SDK's own `tools/call` handler (it lives in a private
-  `_requestHandlers` map) and throw -32602 for names we don't know. `src/mcp/server.ts` fails at startup if the
-  map ever moves.
+  `_requestHandlers` map) and throw -32602 for names we don't know, including non-string names. We throw a plain
+  `Error` with a numeric `code`, because `McpError` puts "MCP error -32602:" into its own message and the SDK sends
+  that message as it is. `src/mcp/server.ts` fails at startup if the map ever moves.
 - **Suggestion:** let `McpError`s with protocol codes (or at least "tool not found") propagate as JSON-RPC
   errors, or add an option for it; and expose a supported hook to wrap request handlers.
 
@@ -39,10 +40,30 @@ MCP spec 2025-11-25 and their docs. Each entry: what happened, the time it cost,
 ## 2026-10-15: tool schemas are emitted as JSON Schema draft-07
 
 - **What happened:** with zod 4, `tools/list` emits a draft-07 `$schema` URI for both input and output schemas,
-  while 2025-11-25 makes 2020-12 the default dialect. It's valid (the dialect is
-  explicit), but it surprised us, and there is no option to pick the target.
-- **Time lost:** about 5 minutes.
-- **Suggestion:** emit 2020-12 by default for the 2025-11-25 protocol, or expose the target as an option.
+  while 2025-11-25 makes 2020-12 the default dialect (SEP-1613). It's valid (the dialect is explicit), but it
+  surprised us, and there is no option to pick the target: `registerTool` calls its converter without one.
+- **Time lost:** about 5 minutes at first; about 20 more on the second day to list 2020-12 instead and to check
+  that the SDK client still validates.
+- **Workaround:** the `tools/list` wrapper replaces each tool's `inputSchema` and `outputSchema` with
+  `z.toJSONSchema(schema, { target: "draft-2020-12", io })`, generated once from the same zod schemas. The SDK's
+  own validation (zod, server side) is untouched. The SDK client validates `structuredContent` with Ajv's default
+  (draft-07) class, created with `validateSchema: false` and `strict: false`, so it compiles a schema that declares
+  2020-12; ours only use keywords that mean the same in both dialects, and a test checks that the client's
+  validator accepts real results and rejects broken ones. We didn't hit it, but a 2020-12-only keyword such as
+  `prefixItems` would be silently ignored by that client.
+- **Suggestion:** emit 2020-12 by default for the 2025-11-25 protocol (or take a target option), and have the
+  client pick Ajv's 2020-12 class when a schema declares it.
+
+## 2026-10-15: a malformed `tools/call` becomes -32603 with a raw ZodError dump
+
+- **What happened:** `tools/call` with `arguments` that isn't an object (`"arguments": "x"`) fails the SDK's
+  request schema inside `setRequestHandler`'s parse. The error is a bare ZodError with no `code`, so it goes out as
+  -32603 (Internal error) and its message is the JSON array of zod issues, where -32602 (Invalid params) and one
+  line of text would be right.
+- **Time lost:** about 10 minutes.
+- **Workaround:** the `tools/call` wrapper maps an error with `issues` to -32602, "Invalid tools/call request:
+  params.arguments: Invalid input: expected record, received string".
+- **Suggestion:** turn request-schema failures into -32602 with a short message in `Protocol`.
 
 ## 2026-10-15: input-validation `isError` text carries a JSON-RPC prefix
 

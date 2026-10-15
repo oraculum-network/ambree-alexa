@@ -27,8 +27,7 @@ Meteorological Services.
 ## Places dataset
 
 `data/places.json` was curated for Ambree from the sources cited in each record's `source` field. It
-contains facts plus our own words (each `blurb` and `speech` is written by us). The copy in this
-repository is marked `"seed": true`: a small starter set that the researched dataset replaces.
+contains facts plus our own words (each `blurb` and `speech` is written by us).
 
 ## Brand
 

@@ -16,17 +16,10 @@ export interface McpRequestInfo {
   tools: string[];
 }
 
-function toolNames(body: unknown): string[] {
-  const msgs = Array.isArray(body) ? body : [body];
-  const names: string[] = [];
-  for (const m of msgs) {
-    if (m && typeof m === "object" && (m as { method?: unknown }).method === "tools/call") {
-      const name = (m as { params?: { name?: unknown } }).params?.name;
-      if (typeof name === "string" && (TOOL_NAMES as readonly string[]).includes(name)) names.push(name);
-      else names.push("unknown");
-    }
-  }
-  return names;
+function toolNames(m: unknown): string[] {
+  if (!m || typeof m !== "object" || (m as { method?: unknown }).method !== "tools/call") return [];
+  const name = (m as { params?: { name?: unknown } }).params?.name;
+  return [typeof name === "string" && (TOOL_NAMES as readonly string[]).includes(name) ? name : "unknown"];
 }
 
 export async function handleMcp(req: IncomingMessage, res: ServerResponse, deps: ToolDeps, info: McpRequestInfo): Promise<void> {
@@ -38,6 +31,12 @@ export async function handleMcp(req: IncomingMessage, res: ServerResponse, deps:
   if (!body.ok) {
     const code = body.status === 400 ? -32700 : -32000;
     sendJsonRpcError(res, body.status, code, body.status === 400 ? "Parse error: invalid JSON" : body.message, body.status === 413 ? { Connection: "close" } : {});
+    return;
+  }
+  // MCP removed JSON-RPC batching in 2025-06-18. Refusing arrays also keeps one HTTP
+  // request (one rate-limit token) to one message.
+  if (Array.isArray(body.value)) {
+    sendJsonRpcError(res, 400, -32600, "Invalid Request: JSON-RPC batches are not supported (removed in MCP 2025-06-18)");
     return;
   }
   info.tools.push(...toolNames(body.value));

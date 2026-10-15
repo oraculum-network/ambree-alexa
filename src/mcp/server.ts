@@ -2,7 +2,8 @@
 // A new instance per request (stateless Streamable HTTP); building one is cheap.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { type CallToolResult, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { type CallToolResult, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { VERSION, SITE_URL } from "../meta.ts";
 import type { ToolDeps, ToolOutcome } from "../tools/context.ts";
 import { findPlaces, findPlacesInput, findPlacesOutput } from "../tools/find-places.ts";
@@ -22,6 +23,29 @@ export const INSTRUCTIONS =
   "Places come only from Ambree's verified dataset, so recommend only places these tools return.";
 
 export const TOOL_NAMES = ["find_places", "place_details", "weather_now", "replan_day"] as const;
+type ToolName = (typeof TOOL_NAMES)[number];
+
+const TOOL_SCHEMAS: Record<ToolName, { input: z.ZodType; output: z.ZodType }> = {
+  find_places: { input: findPlacesInput, output: findPlacesOutput },
+  place_details: { input: placeDetailsInput, output: placeDetailsOutput },
+  weather_now: { input: weatherNowInput, output: weatherNowOutput },
+  replan_day: { input: replanDayInput, output: replanDayOutput },
+};
+
+/**
+ * The schemas we list, as JSON Schema 2020-12 (the 2025-11-25 default dialect, SEP-1613),
+ * generated once from the same zod schemas the SDK validates with. The SDK itself would
+ * list draft-07.
+ */
+export const LISTED_SCHEMAS: Record<ToolName, { inputSchema: Record<string, unknown>; outputSchema: Record<string, unknown> }> = Object.fromEntries(
+  TOOL_NAMES.map((name) => [
+    name,
+    {
+      inputSchema: z.toJSONSchema(TOOL_SCHEMAS[name].input, { target: "draft-2020-12", io: "input" }) as Record<string, unknown>,
+      outputSchema: z.toJSONSchema(TOOL_SCHEMAS[name].output, { target: "draft-2020-12", io: "output" }) as Record<string, unknown>,
+    },
+  ]),
+) as Record<ToolName, { inputSchema: Record<string, unknown>; outputSchema: Record<string, unknown> }>;
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true } as const;
 
@@ -102,15 +126,44 @@ export function buildMcpServer(deps: ToolDeps): McpServer {
   return server;
 }
 
+/**
+ * A JSON-RPC error whose message is exactly `message`: the SDK sends `code` and `message`
+ * as they are, while McpError would prefix "MCP error <code>: " to the message.
+ */
+function protocolError(code: number, message: string, data?: unknown): Error {
+  return Object.assign(new Error(message), { code, ...(data !== undefined ? { data } : {}) });
+}
+
+/**
+ * Errors from the SDK's tools/call path, made readable: a request that fails the SDK's
+ * own request schema (a bare ZodError, which would go out as -32603 with an issue dump)
+ * becomes -32602, and an McpError loses its "MCP error <code>: " prefix.
+ */
+function cleanProtocolError(e: unknown): unknown {
+  const issues = (e as { issues?: unknown })?.issues;
+  if (Array.isArray(issues)) {
+    const detail = issues
+      .slice(0, 3)
+      .map((i: { path?: unknown[]; message?: string }) => `${(i.path ?? []).join(".") || "request"}: ${i.message ?? "invalid"}`)
+      .join("; ");
+    return protocolError(ErrorCode.InvalidParams, `Invalid tools/call request: ${detail}`);
+  }
+  if (!(e instanceof Error) || !Number.isSafeInteger((e as { code?: unknown }).code)) return e;
+  const code = (e as unknown as { code: number }).code;
+  return protocolError(code, e.message.replace(/^MCP error -?\d+: /, ""), (e as { data?: unknown }).data);
+}
+
 type RawRequest = { method: string; params?: Record<string, unknown> };
 type RawHandler = (request: RawRequest, extra: unknown) => Promise<unknown>;
 
 /**
- * Two gaps in SDK 1.32.1's McpServer, closed by wrapping its own handlers:
- *  - tools/list drops `icons` (the 2025-11-25 Tool field), so we add them;
+ * Gaps in SDK 1.32.1's McpServer, closed by wrapping its own handlers:
+ *  - tools/list drops `icons` (the 2025-11-25 Tool field), so we add them, and lists
+ *    draft-07 schemas, so we list our 2020-12 ones (validation stays the SDK's);
  *  - tools/call turns an unknown tool name into an `isError` result, but the spec
  *    makes it a protocol error, so we answer -32602 first. Input that fails a schema
- *    stays an `isError` result (SEP-1303), with the SDK's message tidied for the reader.
+ *    stays an `isError` result (SEP-1303), with the SDK's message tidied for the reader;
+ *  - protocol error messages lose the duplicated "MCP error <code>: " prefix.
  * The SDK keeps handlers in a private map; if that ever moves, fail at startup.
  */
 function patchToolHandlers(server: McpServer, icons: Record<string, Icon[]>): void {
@@ -124,15 +177,29 @@ function patchToolHandlers(server: McpServer, icons: Record<string, Icon[]>): vo
 
   handlers.set("tools/list", async (request: RawRequest, extra: unknown) => {
     const result = (await list(request, extra)) as { tools: Array<{ name: string }> };
-    return { ...result, tools: result.tools.map((t) => (icons[t.name] ? { ...t, icons: icons[t.name] } : t)) };
+    return {
+      ...result,
+      tools: result.tools.map((t) => {
+        const listed = known.has(t.name) ? LISTED_SCHEMAS[t.name as ToolName] : undefined;
+        return { ...t, ...listed, ...(icons[t.name] ? { icons: icons[t.name] } : {}) };
+      }),
+    };
   });
 
   handlers.set("tools/call", async (request: RawRequest, extra: unknown) => {
     const name = request.params?.name;
-    if (typeof name !== "string" || !known.has(name)) {
-      throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${String(name).slice(0, 64)}. Available tools: ${TOOL_NAMES.join(", ")}`);
+    if (typeof name !== "string") {
+      throw protocolError(ErrorCode.InvalidParams, `Invalid tool name: expected a string. Available tools: ${TOOL_NAMES.join(", ")}`);
     }
-    const result = (await call(request, extra)) as CallToolResult;
+    if (!known.has(name)) {
+      throw protocolError(ErrorCode.InvalidParams, `Unknown tool: ${name.slice(0, 64)}. Available tools: ${TOOL_NAMES.join(", ")}`);
+    }
+    let result: CallToolResult;
+    try {
+      result = (await call(request, extra)) as CallToolResult;
+    } catch (e) {
+      throw cleanProtocolError(e);
+    }
     if (result.isError && result.content[0]?.type === "text") {
       const text = result.content[0].text
         .replace(/^MCP error -?\d+: /, "")

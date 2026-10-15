@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { haversineKm } from "../geo.ts";
-import { type Candidate, bestMatch, findInText, normalize, rank } from "./match.ts";
+import { type Candidate, bestMatch, bestScored, findInText, normalize, rank } from "./match.ts";
 
 export const KINDS = [
   "beach", "nature", "viewpoint", "hike", "waterfall", "garden", "wildlife", "museum", "history", "market",
@@ -123,6 +123,11 @@ export interface PlacesIndex {
   areaName(id: string): string;
   /** Fuzzy area lookup by id, name or alias. */
   findArea(query: string): Area | null;
+  /** The same lookups with their match scores (0..1), to compare an area match with a place match. */
+  areaMatch(query: string): { item: Area; score: number } | null;
+  placeMatch(query: string): { item: Place; score: number } | null;
+  /** Up to n suggestions scoring at least `floor` (0..1). */
+  suggestPlacesAbove(query: string, n: number, floor: number): Place[];
   suggestAreas(query: string, n: number): Area[];
   findPlace(query: string): Place | null;
   suggestPlaces(query: string, n: number): Place[];
@@ -165,6 +170,13 @@ export function createPlacesIndex(dataset: Dataset): PlacesIndex {
     place: (id) => placeById.get(id),
     areaName: (id) => areaById.get(id)?.name ?? id,
     findArea: (q) => bestMatch(q, areaCandidates),
+    areaMatch: (q) => bestScored(q, areaCandidates),
+    placeMatch: (q) => bestScored(q, placeCandidates),
+    suggestPlacesAbove: (q, n, floor) =>
+      rank(q, placeCandidates)
+        .filter((r) => r.score >= floor)
+        .slice(0, n)
+        .map((r) => r.item),
     suggestAreas: (q, n) => rank(q, areaCandidates).slice(0, n).map((r) => r.item),
     findPlace: (q) => bestMatch(q, placeCandidates),
     suggestPlaces: (q, n) => rank(q, placeCandidates).slice(0, n).map((r) => r.item),

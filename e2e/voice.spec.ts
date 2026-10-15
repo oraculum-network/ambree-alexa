@@ -72,6 +72,11 @@ test("the unlock gate: a wrong passcode shows an error, the right one opens the 
   await page.getByLabel("Passcode").fill(PASSCODE);
   await page.getByRole("button", { name: "Open the demo" }).click();
   await expect(page.locator(".tag")).toHaveText("FOR ALEXA+ · SIMULATED");
+  // http here, so the cookie is amb_session (on https it is __Host-amb_session, with Secure).
+  const cookies = await page.context().cookies();
+  expect(cookies.map((c) => ({ name: c.name, httpOnly: c.httpOnly, sameSite: c.sameSite, path: c.path, secure: c.secure }))).toEqual([
+    { name: "amb_session", httpOnly: true, sameSite: "Strict", path: "/", secure: false },
+  ]);
   await expect(page.getByText("A simulated Alexa+ experience. This page is an MCP client of Ambree's Mauritius tools.")).toBeVisible();
   await expect(page.getByText("Staying in Grand Baie · 3 days left")).toBeVisible();
   await expect(page.getByRole("link", { name: "Source" })).toHaveAttribute("href", "https://github.com/oraculum-network/ambree-alexa");
@@ -83,6 +88,9 @@ test("a typed re-plan names a rain_ok place, and Under the hood lists replan_day
   await expect(page.locator("#hood")).toHaveAttribute("open", "");
   const reply = await askTyped(page, "It's raining in Grand Baie. Re-plan my afternoon.");
   expect(rainOkNames.some((n) => reply.includes(n)), `reply names a rain_ok place: ${reply}`).toBe(true);
+  // A typed turn gives focus back to the question box.
+  await expect(page.getByLabel("Ask Ambree")).toBeFocused();
+  await expect(page.getByLabel("Ask Ambree")).toBeEnabled();
   const turn = page.locator(".hood-turn").first();
   await expect(turn.locator(".badge")).toHaveText("Offline");
   await expect(turn.locator(".call-name")).toHaveText(["replan_day"]);

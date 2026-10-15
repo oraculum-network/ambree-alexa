@@ -12,7 +12,7 @@ import { muParts, hhmmMu } from "../time.ts";
 import type { Budget } from "./budget.ts";
 import { type McpSession, type TraceEntry, openMcpSession, toFunctionTools } from "./mcp-client.ts";
 import { OFFLINE_HINT, routeOffline } from "./offline.ts";
-import { type ChatMessage, ChatError, chatCompletion } from "./openrouter.ts";
+import { type ChatMessage, type ChatResponse, ChatError, MAX_TOKENS, chatCompletion } from "./openrouter.ts";
 
 export const MAX_TOOL_ROUNDS = 4;
 export const MAX_CALLS_PER_ROUND = 3;
@@ -25,6 +25,7 @@ export const NOTICES = {
   budget: "Today's AI budget is used up, so I'm answering in offline mode.",
   credit: "The AI service is out of credit, so I'm answering in offline mode.",
   down: "The AI model didn't respond, so I'm answering in offline mode.",
+  busy: "Lots of people are asking right now, so I'm answering in offline mode.",
 } as const;
 
 export interface AgentInput {
@@ -43,12 +44,16 @@ export interface AgentReply {
 export interface AgentDeps {
   config: Pick<Config, "openrouterKey" | "openrouterUrl" | "model" | "fallbackModels">;
   mcpUrl: string;
+  /** Extra headers on every MCP request (the app's internal token). */
+  mcpHeaders?: Record<string, string>;
   /** Sent as HTTP-Referer to OpenRouter. */
   publicOrigin: string;
   places: PlacesIndex;
   budget: Budget;
   now: () => number;
   fetch?: typeof fetch;
+  /** Per-call LLM timeout (tests shorten it). */
+  llmTimeoutMs?: number;
 }
 
 export function systemPrompt(now: number): string {
@@ -95,21 +100,35 @@ async function llmTurn(input: AgentInput, session: McpSession, deps: AgentDeps, 
   let lastSpeech = "";
   let model = deps.config.model;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    if (round > 0 && !deps.budget.available()) throw new BudgetSpent();
     const allowTools = round < MAX_TOOL_ROUNDS && totalCalls < MAX_CALLS_PER_TURN;
-    const res = await chatCompletion({
-      url: deps.config.openrouterUrl,
-      apiKey: key,
-      referer: deps.publicOrigin,
-      model: deps.config.model,
-      fallbackModels: deps.config.fallbackModels,
-      messages,
-      tools,
-      toolChoice: allowTools ? "auto" : "none",
-      signal: AbortSignal.any([turnSignal, AbortSignal.timeout(LLM_CALL_TIMEOUT_MS)]),
-      fetch: deps.fetch,
-    });
-    deps.budget.addUsage(res.usage);
+    // Reserve this call's worst case before sending it (synchronously), then settle.
+    const reserved = deps.budget.reservationFor(JSON.stringify(messages).length + JSON.stringify(tools).length, MAX_TOKENS);
+    if (!deps.budget.tryReserve(reserved)) throw new BudgetSpent();
+    let cost = reserved;
+    let res: ChatResponse;
+    try {
+      res = await chatCompletion({
+        url: deps.config.openrouterUrl,
+        apiKey: key,
+        referer: deps.publicOrigin,
+        model: deps.config.model,
+        fallbackModels: deps.config.fallbackModels,
+        messages,
+        tools,
+        toolChoice: allowTools ? "auto" : "none",
+        signal: AbortSignal.any([turnSignal, AbortSignal.timeout(deps.llmTimeoutMs ?? LLM_CALL_TIMEOUT_MS)]),
+        fetch: deps.fetch,
+      });
+      // No usage reported: keep the reservation rather than counting the call as free.
+      cost = deps.budget.costOf(res.usage) ?? reserved;
+    } catch (e) {
+      // An error status means no completion was served; a timeout, network failure or
+      // unreadable reply may still be billed, so it keeps its reservation.
+      if (e instanceof ChatError && e.kind === "http") cost = 0;
+      throw e;
+    } finally {
+      deps.budget.settle(reserved, cost);
+    }
     if (res.model) model = res.model;
     const msg = res.choices[0]!.message;
     const calls = msg.tool_calls ?? [];
@@ -148,7 +167,7 @@ export async function runAgentTurn(input: AgentInput, deps: AgentDeps): Promise<
   const turnSignal = AbortSignal.timeout(TURN_TIMEOUT_MS);
   let session: McpSession;
   try {
-    session = await openMcpSession(deps.mcpUrl, trace, turnSignal);
+    session = await openMcpSession(deps.mcpUrl, trace, turnSignal, deps.mcpHeaders);
   } catch {
     return { reply: "Sorry, my Mauritius tools aren't reachable right now. Please try again in a minute.", mode: "offline", trace };
   }
@@ -156,10 +175,11 @@ export async function runAgentTurn(input: AgentInput, deps: AgentDeps): Promise<
     if (!deps.config.openrouterKey) {
       return { reply: await offlineTurn(input.text, session, deps.places, turnSignal), mode: "offline", trace };
     }
-    if (!deps.budget.available()) {
-      return { reply: await offlineTurn(input.text, session, deps.places, turnSignal), mode: "offline", trace, notice: NOTICES.budget };
+    const gate = deps.budget.beginTurn();
+    if (!gate.ok) {
+      const notice = gate.reason === "busy" ? NOTICES.busy : NOTICES.budget;
+      return { reply: await offlineTurn(input.text, session, deps.places, turnSignal), mode: "offline", trace, notice };
     }
-    deps.budget.startTurn();
     try {
       const { reply, model } = await llmTurn(input, session, deps, turnSignal);
       return { reply, mode: "llm", model, trace };
@@ -167,6 +187,8 @@ export async function runAgentTurn(input: AgentInput, deps: AgentDeps): Promise<
       const notice = e instanceof BudgetSpent ? NOTICES.budget : noticeFor(e);
       const fallbackSignal = AbortSignal.timeout(10_000);
       return { reply: await offlineTurn(input.text, session, deps.places, fallbackSignal), mode: "offline", trace, notice };
+    } finally {
+      deps.budget.endTurn();
     }
   } finally {
     await session.close();

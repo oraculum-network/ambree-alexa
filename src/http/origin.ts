@@ -20,15 +20,18 @@ export function hostnameOf(host: string): string {
   return colon >= 0 ? h.slice(0, colon) : h;
 }
 
-export function createOriginPolicy(opts: { publicOrigin: string; port: number; extraOrigins: string[] }): OriginPolicy {
+export function createOriginPolicy(opts: { publicOrigin: string; port: number; extraOrigins: string[]; extraHosts?: string[] }): OriginPolicy {
   const allowedOrigins = new Set<string>([
     opts.publicOrigin,
     `http://localhost:${opts.port}`,
     `http://127.0.0.1:${opts.port}`,
+    `http://[::1]:${opts.port}`,
     ...opts.extraOrigins,
   ]);
   const allowedHostnames = new Set<string>(["localhost", "127.0.0.1", "[::1]", new URL(opts.publicOrigin).hostname.toLowerCase()]);
   for (const o of opts.extraOrigins) allowedHostnames.add(new URL(o).hostname.toLowerCase());
+  // e.g. the host in MCP_URL, which the agent's own calls use as Host.
+  for (const h of opts.extraHosts ?? []) allowedHostnames.add(h.toLowerCase());
   return {
     allowedOrigins,
     allowedHostnames,

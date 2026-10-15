@@ -86,6 +86,12 @@ function originOf(raw: string, key: string): string {
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
+  // An empty DEMO_PASSCODE (as in .env.example) means "no gate"; one made only of spaces is
+  // almost certainly a mistake, and silently opening the gate would be the wrong failure.
+  const rawPasscode = env.DEMO_PASSCODE;
+  if (typeof rawPasscode === "string" && rawPasscode !== "" && rawPasscode.trim() === "") {
+    throw new ConfigError("DEMO_PASSCODE is set but blank: set a real passcode, or leave it empty to turn the gate off");
+  }
   const cleaned: Record<string, string> = {};
   for (const key of Object.keys(EnvSchema.shape)) {
     const v = env[key];

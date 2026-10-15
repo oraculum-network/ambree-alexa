@@ -2,6 +2,7 @@
 
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { LATEST_PROTOCOL_VERSION, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INSTRUCTIONS, SERVER_NAME, SERVER_TITLE } from "../src/mcp/server.ts";
 import { VERSION } from "../src/meta.ts";
@@ -17,7 +18,7 @@ let t: TestApp;
 let client: Client;
 
 beforeAll(async () => {
-  t = await startTestApp({ feeds: { weather: rainBetween(13, 15) } });
+  t = await startTestApp({ env: { RATE_LIMIT_SCALE: "10" }, feeds: { weather: rainBetween(13, 15) } });
   client = await connectClient(t.url);
 });
 afterAll(async () => {
@@ -59,14 +60,39 @@ describe("tools/list", () => {
       expect(tool.inputSchema.type).toBe("object");
       expect(tool.outputSchema?.type).toBe("object");
       expect(tool.outputSchema?.properties).toHaveProperty("speech");
-      // Recorded: SDK 1.32.1 with zod 4 emits JSON Schema draft-07 for both schemas.
-      expect(tool.inputSchema.$schema).toMatch(/\/draft-07\/schema#$/);
-      expect(tool.outputSchema?.$schema).toMatch(/\/draft-07\/schema#$/);
+      // 2025-11-25 makes JSON Schema 2020-12 the default dialect (SEP-1613). The SDK alone
+      // would list draft-07; our tools/list wrapper lists 2020-12 from the same zod schemas.
+      expect(tool.inputSchema.$schema).toMatch(/\/draft\/2020-12\/schema$/);
+      expect(tool.outputSchema?.$schema).toMatch(/\/draft\/2020-12\/schema$/);
+      expect(tool.outputSchema?.additionalProperties).toBe(false);
       expect(tool.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
       expect(tool.annotations?.openWorldHint).toBe(tool.name === "weather_now" || tool.name === "replan_day");
       expect(tool.icons?.length).toBe(2);
       expect(tool.icons?.[0]?.mimeType).toBe("image/svg+xml");
     }
+  });
+});
+
+describe("2020-12 schemas and the SDK client's validator", () => {
+  it("Ajv in the SDK client compiles every listed output schema and validates structuredContent with it", async () => {
+    const { tools } = await client.listTools();
+    const ajv = new AjvJsonSchemaValidator();
+    const res = (await client.callTool({ name: "place_details", arguments: { place: "Blue Penny Museum" } })) as CallToolResult;
+    for (const tool of tools) expect(() => ajv.getValidator(tool.outputSchema!), tool.name).not.toThrow();
+    const validate = ajv.getValidator(tools.find((x) => x.name === "place_details")!.outputSchema!);
+    expect(validate(res.structuredContent).valid).toBe(true);
+    const { speech: _dropped, ...broken } = res.structuredContent as { speech: string };
+    expect(validate(broken).valid).toBe(false);
+    expect(validate({ ...res.structuredContent, extra: 1 }).valid).toBe(false);
+  });
+
+  it("the input schemas keep defaults optional and describe each field", async () => {
+    const { tools } = await client.listTools();
+    const find = tools.find((x) => x.name === "find_places")!;
+    expect(find.inputSchema.required ?? []).not.toContain("limit");
+    expect((find.inputSchema.properties as Record<string, { description?: string }>).area?.description).toMatch(/Fuzzy/);
+    const replan = tools.find((x) => x.name === "replan_day")!;
+    expect(replan.inputSchema.required).toEqual(["area"]);
   });
 });
 

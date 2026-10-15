@@ -88,3 +88,21 @@ export function rainySpells(steps: HourStep[]): Array<{ start: number; end: numb
   });
   return spells;
 }
+
+/** "an orange" or "a red", for "has an orange alert". */
+export function alertArticle(level: "Green" | "Orange" | "Red"): string {
+  return level === "Red" ? "a red" : level === "Orange" ? "an orange" : "a green";
+}
+
+/**
+ * The advice for an Orange or Red system near enough to mention but not to stay put.
+ * The short form fits next to a longer first sentence.
+ */
+export function watchSentence(s: NearbyCyclone, short = false): string {
+  const km = Math.round(s.distanceKm / 100) * 100;
+  const raw = spokenCycloneName(s.name);
+  const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+  return short
+    ? `${name} has ${alertArticle(s.alertLevel)} alert ${km} kilometres away, so follow the official cyclone bulletins.`
+    : `${name} has ${alertArticle(s.alertLevel)} alert about ${km} kilometres from Mauritius, so keep an eye on the official cyclone bulletins from the Mauritius Meteorological Services.`;
+}
